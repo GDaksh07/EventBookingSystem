@@ -22,17 +22,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-/**
- * Single GUI class that implements:
- * - Event creation / listing / cancel
- * - User add / list / remove
- * - Booking create / cancel / view (promotes waitlist -> confirmed)
- *
- * This uses the project's Event/User/Booking classes and simple UI controls.
- */
 public class HelloApplication extends Application {
 
-    // --- Shared in-memory state (single source of truth) ---
+    // Shared in-memory state (single source of truth)
     private final List<Event> events = new ArrayList<>();
     private final List<User> users = new ArrayList<>();
     private final Map<String, Booking> bookings = new HashMap<>();
@@ -42,38 +34,44 @@ public class HelloApplication extends Application {
     private static final DateTimeFormatter DISPLAY_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     // UI controls referenced across methods
+    // Displays the designated output
     private TextArea eventOutput;
     private TextArea userOutput;
     private TextArea bookingOutput;
 
+    // User selects for booking
     private ComboBox<String> bookingUserCombo;
     private ComboBox<String> bookingEventCombo;
 
     @Override
     public void start(Stage stage) {
 
-        // ---------- MAIN MENU ----------
+        // Main Menu
         Label title = new Label("OPP Final Project - Main Menu");
 
+        // Creates buttons for each topic
         Button eventBtn = new Button("Event Management");
         Button userBtn = new Button("User Management");
         Button waitlistBtn = new Button("Waitlist (View Only)");
         Button bookingBtn = new Button("Booking Management");
 
+        // Sets the width of the button
         eventBtn.setPrefWidth(200);
         userBtn.setPrefWidth(200);
         waitlistBtn.setPrefWidth(200);
         bookingBtn.setPrefWidth(200);
 
+        // Vertical layout for the main menu
         VBox mainRoot = new VBox(12, title, eventBtn, userBtn, waitlistBtn, bookingBtn);
         mainRoot.setPadding(new Insets(18));
         Scene mainScene = new Scene(mainRoot, 600, 420);
 
-        // ---------- EVENT SCREEN ----------
+        // Event Screen
         eventOutput = new TextArea();
-        eventOutput.setEditable(false);
-        eventOutput.setPrefHeight(160);
+        eventOutput.setEditable(false); // prevents the user from editing the text
+        eventOutput.setPrefHeight(160); // fixed display height
 
+        // Text for the different boxes the user can input into
         TextField evTitle = new TextField();
         evTitle.setPromptText("Title");
 
@@ -86,9 +84,10 @@ public class HelloApplication extends Application {
         TextField evCapacity = new TextField();
         evCapacity.setPromptText("Capacity (integer)");
 
+        // Dropdown menu for selecting each subclass type
         ComboBox<EventType> evType = new ComboBox<>();
         evType.setItems(FXCollections.observableArrayList(EventType.CONCERT, EventType.SEMINAR, EventType.WORKSHOP));
-        evType.setValue(EventType.CONCERT);
+        evType.setValue(EventType.CONCERT); // Sets the dropdown first to CONCERT
 
         // Extra fields used for subclass constructors
         TextField extraField = new TextField();
@@ -108,7 +107,9 @@ public class HelloApplication extends Application {
         eventRoot.setPadding(new Insets(12));
         Scene eventScene = new Scene(eventRoot, 800, 500);
 
-        // ---------- USER SCREEN ----------
+        // User Screen
+        // Same idea as the Event Screen with all the textboxes
+        // Only difference is it's stored in a different location
         userOutput = new TextArea();
         userOutput.setEditable(false);
         userOutput.setPrefHeight(200);
@@ -138,13 +139,16 @@ public class HelloApplication extends Application {
         Button removeUserBtn = new Button("Remove User");
         Button backFromUser = new Button("Back");
 
+        // inputs for each container
         HBox userFormRow = new HBox(8, userName, userSurname, userMonth, userDay, userYear, userIdField);
         HBox userFormRow2 = new HBox(8, addUserBtn, refreshUsersBtn, removeUserId, removeUserBtn);
+        // This stacks both layers as an input from both horizontal layers
         VBox userRoot = new VBox(10, new Label("User Management"), userOutput, userFormRow, userFormRow2, backFromUser);
+        // Padding - 12 pixels of whitespace on all sides
         userRoot.setPadding(new Insets(12));
         Scene userScene = new Scene(userRoot, 900, 520);
 
-        // ---------- WAITLIST VIEW SCREEN (read-only) ----------
+        // Waitlist Viewer (read only)
         TextArea waitlistOutput = new TextArea();
         waitlistOutput.setEditable(false);
         waitlistOutput.setPrefHeight(400);
@@ -153,7 +157,8 @@ public class HelloApplication extends Application {
         waitRoot.setPadding(new Insets(12));
         Scene waitScene = new Scene(waitRoot, 700, 500);
 
-        // ---------- BOOKING SCREEN ----------
+        // Booking Screen
+        // Same idea as Event Screen with textboxes
         bookingOutput = new TextArea();
         bookingOutput.setEditable(false);
         bookingOutput.setPrefHeight(200);
@@ -180,10 +185,10 @@ public class HelloApplication extends Application {
         bookingRoot.setPadding(new Insets(12));
         Scene bookingScene = new Scene(bookingRoot, 900, 520);
 
-        // ---------- Wire navigation ----------
+        // Wire Navigation
         eventBtn.setOnAction(e -> {
-            refreshEvents();
-            stage.setScene(eventScene);
+            refreshEvents(); // Ensures list is updated
+            stage.setScene(eventScene); // Switches scene
         });
         userBtn.setOnAction(e -> {
             refreshUsers();
@@ -203,9 +208,10 @@ public class HelloApplication extends Application {
         backFromWaitlist.setOnAction(e -> stage.setScene(mainScene));
         backFromBooking.setOnAction(e -> stage.setScene(mainScene));
 
-        // ---------- Actions: EVENTS ----------
+        // Actions: EVENTS
         createEventBtn.setOnAction(e -> {
             try {
+                // Reads and validates user input
                 String titleVal = evTitle.getText().trim();
                 LocalDateTime dt = LocalDateTime.parse(evDate.getText().trim(), INPUT_FMT);
                 String locVal = evLocation.getText().trim();
@@ -213,6 +219,7 @@ public class HelloApplication extends Application {
                 EventType t = evType.getValue();
 
                 Event created;
+                // Creates correct subclasses based on the type of event
                 switch (t) {
                     case CONCERT -> {
                         int age = 0;
@@ -252,21 +259,21 @@ public class HelloApplication extends Application {
             }
             try {
                 found.cancelEvent();
-                // If cancelling, mark all confirmed bookings CANCELLED and promote waitlist (optional)
+                // If cancelling, mark all confirmed bookings CANCELLED and promote waitlist
                 List<Booking> toCancel = new ArrayList<>();
                 for (Booking b : new ArrayList<>(found.getConfirmedBookings())) {
                     b.setStatus(BookingStatus.CANCELLED);
                     toCancel.add(b);
                 }
                 found.getConfirmedBookings().clear();
-                // Optionally notify/promote; here we clear confirmed bookings since event cancelled
                 refreshEvents();
             } catch (Exception ex) {
                 eventOutput.setText("CANCEL ERROR: " + ex.getMessage());
             }
         });
 
-        // ---------- Actions: USERS ----------
+        // Actions: USERS
+        // Relatively similar to the events action
         addUserBtn.setOnAction(e -> {
             try {
                 String n = userName.getText().trim();
@@ -277,6 +284,7 @@ public class HelloApplication extends Application {
                 int id = Integer.parseInt(userIdField.getText().trim());
 
                 User u = new User(n, s, m, d, y, id); // defaults to STUDENT
+                // Still need to add STAFF and GUEST
                 users.add(u);
                 refreshUsers();
             } catch (Exception ex) {
@@ -303,7 +311,9 @@ public class HelloApplication extends Application {
             }
         });
 
-        // ---------- Actions: BOOKINGS ----------
+        // Actions: BOOKINGS
+        // Same thing as before again but instead utilizes the users and events
+        // created to book events
         createBookingBtn.setOnAction(e -> {
             try {
                 String bookingId = bookingIdField.getText().trim();
@@ -397,18 +407,19 @@ public class HelloApplication extends Application {
             refreshEvents();
         });
 
-        // ---------- initial sample data (optional) ----------
+        // Initial sample data
         seedSampleData();
 
-        // ---------- show main scene ----------
+        // Shows main screen
         stage.setTitle("OPP Final Project");
         stage.setScene(mainScene);
         stage.show();
     }
 
-    // ---------------- helper methods ----------------
+    // Helper methods
 
     private void refreshEvents() {
+        // Outputs a refreshed version of the events screen
         StringBuilder sb = new StringBuilder();
         for (Event ev : events) {
             sb.append(ev.getEventId())
@@ -426,6 +437,7 @@ public class HelloApplication extends Application {
     }
 
     private void refreshUsers() {
+        // Outputs a refreshed version of the users screen
         StringBuilder sb = new StringBuilder();
         for (User u : users) {
             sb.append(u.getID())
@@ -439,6 +451,7 @@ public class HelloApplication extends Application {
     }
 
     private void refreshBookings() {
+        // Outputs a refreshed version of the bookings screen
         StringBuilder sb = new StringBuilder();
         for (Booking b : bookings.values()) {
             sb.append(b.getBookingId())
@@ -452,6 +465,7 @@ public class HelloApplication extends Application {
     }
 
     private void refreshWaitlist(TextArea waitlistOutput) {
+        // Outputs a refreshed version of the waitlist screen
         StringBuilder sb = new StringBuilder();
         for (Event ev : events) {
             sb.append("Event ").append(ev.getEventId()).append(" - ").append(ev.getTitle()).append("\n");
@@ -464,12 +478,14 @@ public class HelloApplication extends Application {
         waitlistOutput.setText(sb.toString());
     }
 
+    // Updates the dropdown menus with current users and events
     private void refreshBookingCombos() {
         // Populate combos with "id - display" strings
         List<String> uList = new ArrayList<>();
         for (User u : users) {
             uList.add(u.getID() + " - " + u.getName());
         }
+        // Replace the items inside the user comboBox
         bookingUserCombo.setItems(FXCollections.observableArrayList(uList));
 
         List<String> evList = new ArrayList<>();
@@ -479,16 +495,19 @@ public class HelloApplication extends Application {
         bookingEventCombo.setItems(FXCollections.observableArrayList(evList));
     }
 
+    // Finds user by id (linear search)
     private User findUserById(int id) {
         for (User u : users) if (u.getID() == id) return u;
         return null;
     }
 
+    // Finds events by id (Case sensitive)
     private Event findEventById(String id) {
         for (Event e : events) if (e.getEventId().equalsIgnoreCase(id)) return e;
         return null;
     }
 
+    // Sample data provided in the gui when the program starts
     private void seedSampleData() {
         // Add sample user
         try {
