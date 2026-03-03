@@ -8,6 +8,8 @@ import Event_Management.Workshop;
 import User_Management.User;
 import enums.BookingStatus;
 import enums.EventType;
+import Waitlist_Management.WaitlistManager;
+import Waitlist_Management.PromotionResult;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -32,6 +34,8 @@ public class HelloApplication extends Application {
     // Date/time format used for parsing and display
     private static final DateTimeFormatter INPUT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter DISPLAY_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    private final WaitlistManager waitlistManager = new WaitlistManager();
 
     // UI controls referenced across methods
     // Displays the designated output
@@ -259,6 +263,12 @@ public class HelloApplication extends Application {
             }
             try {
                 found.cancelEvent();
+
+                waitlistManager.handleEventCancelled(found);
+                found.getWaitlist().clear();
+                found.getConfirmedBookings().clear();
+                refreshEvents();
+
                 // If cancelling, mark all confirmed bookings CANCELLED and promote waitlist
                 List<Booking> toCancel = new ArrayList<>();
                 for (Booking b : new ArrayList<>(found.getConfirmedBookings())) {
@@ -354,9 +364,14 @@ public class HelloApplication extends Application {
                 if (ev.hasCapacity()) {
                     newBooking = new Booking(bookingId, u, ev, BookingStatus.CONFIRMED);
                     ev.addConfirmedBooking(newBooking);
+
+                    waitlistManager.addToConfirmed(ev, u);
+
                 } else {
                     newBooking = new Booking(bookingId, u, ev, BookingStatus.WAITLISTED);
                     ev.addToWaitlist(newBooking);
+
+                    waitlistManager.addToWaitlist(ev, u);
                 }
 
                 bookings.put(bookingId, newBooking);
@@ -393,14 +408,30 @@ public class HelloApplication extends Application {
 
             if (wasConfirmed) {
                 ev.removeConfirmedBooking(b);
-                // promote next waitlist booking if exists
-                Booking promoted = ev.pollWaitlist();
-                if (promoted != null) {
-                    promoted.setStatus(BookingStatus.CONFIRMED);
-                    ev.addConfirmedBooking(promoted);
+
+                PromotionResult result = waitlistManager.cancelConfirmedWithResult(ev, b.getUser());
+
+                if (result.isPromoted()) {
+                    User promotedUser = result.getPromotedUser();
+
+                    Booking promotedBooking = null;
+                    for (Booking wb : ev.getWaitlist()) {
+                        if (wb.getUser().equals(promotedUser)) {
+                            promotedBooking = wb;
+                            break;
+                        }
+                    }
+
+                    if (promotedBooking != null) {
+                        ev.removeFromWaitlist(promotedBooking);
+                        promotedBooking.setStatus(BookingStatus.CONFIRMED);
+                        ev.addConfirmedBooking(promotedBooking);
+                    }
                 }
+
             } else {
                 ev.removeFromWaitlist(b);
+                waitlistManager.removeFromWaitlist(ev, b.getUser());
             }
 
             refreshBookings();
@@ -465,16 +496,26 @@ public class HelloApplication extends Application {
     }
 
     private void refreshWaitlist(TextArea waitlistOutput) {
-        // Outputs a refreshed version of the waitlist screen
         StringBuilder sb = new StringBuilder();
+
         for (Event ev : events) {
             sb.append("Event ").append(ev.getEventId()).append(" - ").append(ev.getTitle()).append("\n");
-            sb.append(" Waitlist:\n");
-            for (Booking b : ev.getWaitlist()) {
-                sb.append("  - ").append(b.getBookingId()).append(" | user=").append(b.getUser().getID()).append("\n");
+
+            // CONFIRMED from WaitlistManager
+            sb.append(" Confirmed:\n");
+            for (User u : waitlistManager.viewConfirmed(ev)) {
+                sb.append("  - user=").append(u.getID()).append(" ").append(u.getName()).append("\n");
             }
+
+            // WAITLIST from WaitlistManager
+            sb.append(" Waitlist:\n");
+            for (User u : waitlistManager.viewWaitlist(ev)) {
+                sb.append("  - user=").append(u.getID()).append(" ").append(u.getName()).append("\n");
+            }
+
             sb.append("\n");
         }
+
         waitlistOutput.setText(sb.toString());
     }
 
