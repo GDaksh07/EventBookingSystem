@@ -19,10 +19,12 @@ public class Concert extends Event {
         return "CON" + (nextId++);
     }
 
+    // Getter
     public int getAgeRestriction() {
         return ageRestriction;
     }
 
+    // Setter
     public void setAgeRestriction(int ageRestriction) {
         if (ageRestriction < 0) {
             throw new IllegalArgumentException("Age restriction cannot be negative.");

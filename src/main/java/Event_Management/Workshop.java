@@ -19,10 +19,12 @@ public class Workshop extends Event {
         return "WS" + (nextId++);
     }
 
+    // Getter
     public String getTopic() {
         return topic;
     }
 
+    // Setter
     public void setTopic(String topic) {
         if (topic == null || topic.trim().isEmpty())
             throw new IllegalArgumentException("Topic cannot be empty.");
