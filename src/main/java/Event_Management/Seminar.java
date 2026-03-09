@@ -19,10 +19,12 @@ public class Seminar extends Event {
         return "SEM" + (nextId++);
     }
 
+    // Getter
     public String getSpeakerName() {
         return speakerName;
     }
 
+    // Setter
     public void setSpeakerName(String speakerName) {
         if (speakerName == null || speakerName.trim().isEmpty())
             throw new IllegalArgumentException("speakerName cannot be empty.");
