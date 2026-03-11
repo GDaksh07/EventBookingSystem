@@ -271,70 +271,100 @@ public class HelloApplication extends Application {
 
 
         // Actions: EVENTS
+        // Runs when the user clicks the "Create Event" Button
         createEventBtn.setOnAction(e -> {
             try {
-                // Reads and validates user input
+                // Reads and trims user input if valid input
                 String titleVal = evTitle.getText().trim();
                 LocalDateTime dt = LocalDateTime.parse(evDate.getText().trim(), INPUT_FMT);
                 String locVal = evLocation.getText().trim();
                 int cap = Integer.parseInt(evCapacity.getText().trim());
                 EventType t = evType.getValue();
 
+                // Will store the specific Event subclass object that gets created
                 Event created;
+
                 // Creates correct subclasses based on the type of event
                 switch (t) {
                     case CONCERT -> {
+                        // Checks if the age restriction inputted was an integer value
+                        // Otherwise defaults to 0 if left blank
                         int age = 0;
                         try { age = Integer.parseInt(extraField.getText().trim()); } catch (Exception ex) { age = 0; }
                         created = new Concert(titleVal, dt, locVal, cap, age);
                     }
                     case SEMINAR -> {
+                        // Automatically has a default topic if field is left blank
                         String topic = extraField.getText().trim().isEmpty() ? "General" : extraField.getText().trim();
                         created = new Seminar(titleVal, dt, locVal, cap, topic);
                     }
                     case WORKSHOP -> {
+                        // Automatically has a default material field if left blank
                         String materials = extraField.getText().trim().isEmpty() ? "N/A" : extraField.getText().trim();
                         created = new Workshop(titleVal, dt, locVal, cap, materials);
                     }
                     default -> throw new IllegalStateException("Unexpected event type");
                 }
+
+                // Stores the selected event type in the created object
                 created.setEventType(t);
+
+                // Adds the new event to the list
                 events.add(created);
+
+                // Refresh the event screen to show the new event
                 refreshEvents();
             } catch (Exception ex) {
+                // Shows an error message if input is invalid or event creation fails
                 eventOutput.setText("CREATE ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             }
         });
 
+        // Refreshes the event display when the "Refresh List" button is clicked
         refreshEventsBtn.setOnAction(e -> refreshEvents());
 
+        // Runs when the user clicks the "Cancel Event" button
         cancelEventBtn.setOnAction(e -> {
-            String id = cancelEventId.getText().trim();
+            String id = cancelEventId.getText().trim(); // Reads the event ID entered by the user
+
+            // Validates the ID was entered
             if (id.isEmpty()) {
                 eventOutput.setText("Enter Event ID to cancel.");
                 return;
             }
-            Event found = findEventById(id);
+
+            Event found = findEventById(id); // Finds the matching event object
+
+            // Shows an error message if event does not exist
             if (found == null) {
                 eventOutput.setText("Event not found: " + id);
                 return;
             }
-            try {
-                found.cancelEvent();
 
+            try {
+                found.cancelEvent(); // Mark the event as cancelled
+
+                // Let the waitlist manager handle cancellation related logic
                 waitlistManager.handleEventCancelled(found);
+
+                // Clears the waitlist and confirmed bookings
                 found.getWaitlist().clear();
                 found.getConfirmedBookings().clear();
-                refreshEvents();
 
-                // If cancelling, mark all confirmed bookings CANCELLED and promote waitlist
+                refreshEvents(); // Refresh the event display
+
+                // Mark all confirmed bookings for this event as cancelled
                 List<Booking> toCancel = new ArrayList<>();
                 for (Booking b : new ArrayList<>(found.getConfirmedBookings())) {
                     b.setStatus(BookingStatus.CANCELLED);
                     toCancel.add(b);
                 }
-                found.getConfirmedBookings().clear();
-                refreshEvents();
+
+                found.getConfirmedBookings().clear(); // Clear confirmed bookings again
+
+                refreshEvents(); // Refresh the event display again
+
+                // Shows an error message if the cancellation fails
             } catch (Exception ex) {
                 eventOutput.setText("CANCEL ERROR: " + ex.getMessage());
             }
@@ -342,8 +372,9 @@ public class HelloApplication extends Application {
 
 
         // Actions: USERS
-        // Relatively similar to the events action
+        // Runs when the user clicks the "Add User" button
         addUserBtn.setOnAction(e -> {
+            // Reads and trims the input from the user
             try {
                 String n = userName.getText().trim();
                 String s = userSurname.getText().trim();
@@ -352,29 +383,46 @@ public class HelloApplication extends Application {
                 int y = Integer.parseInt(userYear.getText().trim());
                 int id = Integer.parseInt(userIdField.getText().trim());
 
-                User u = new User(n, s, m, d, y, id); // defaults to STUDENT
+                // Creates a new user object using the entered information
+                // This constructor is currently only defaulted to everyone being a student
+                User u = new User(n, s, m, d, y, id);
                 // Still need to add STAFF and GUEST
-                users.add(u);
-                refreshUsers();
+
+                users.add(u); // Adds the users to the main user list
+
+                refreshUsers(); // Refreshes the user display to show the new user
+
+                // Shows an error message if input is invalid or user creation fails
             } catch (Exception ex) {
                 userOutput.setText("ADD USER ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             }
         });
 
+        // Refreshes when the user clicks the "Remove User" button
         refreshUsersBtn.setOnAction(e -> refreshUsers());
 
+        // Runs when the user clicks the "Remove User" button
         removeUserBtn.setOnAction(e -> {
             try {
+                // Reads the user ID entered for removal
                 int id = Integer.parseInt(removeUserId.getText().trim());
-                User found = findUserById(id);
+
+                User found = findUserById(id); // Finds the matching user object
+
+                // Shows an error message if no matching user id exists
                 if (found == null) {
                     userOutput.setText("User not found: " + id);
                     return;
                 }
-                users.remove(found);
+
+                users.remove(found); // Removes the user from the user list
+
                 // Also remove bookings belonging to this user
                 bookings.values().removeIf(b -> b.getUser().equals(found));
-                refreshUsers();
+
+                refreshUsers(); // Refreshes the user display after removal
+
+                // Shows an error message if removal fails
             } catch (Exception ex) {
                 userOutput.setText("REMOVE USER ERROR: " + ex.getMessage());
             }
@@ -382,37 +430,42 @@ public class HelloApplication extends Application {
 
 
         // Actions: BOOKINGS
-        // Same thing as before again but instead utilizes the users and events
-        // created to book events
+        // Runs when user clicks the "Create Booking" button
         createBookingBtn.setOnAction(e -> {
             try {
+                // Reads the booking id and selected entries from the gui
                 String bookingId = bookingIdField.getText().trim();
                 String userEntry = bookingUserCombo.getValue();
                 String eventEntry = bookingEventCombo.getValue();
 
+                // Makes sure all required inputs were provided
                 if (bookingId.isEmpty() || userEntry == null || eventEntry == null) {
                     bookingOutput.setText("Please supply booking ID, user, and event.");
                     return;
                 }
 
+                // Gets the user ID and eventID from the combobox display
                 int userId = Integer.parseInt(userEntry.split(" - ")[0]);
                 String eventId = eventEntry.split(" - ")[0];
 
+                // Finds actual user and event objects using their IDs
                 User u = findUserById(userId);
                 Event ev = findEventById(eventId);
 
+                // Stops if either user or event does not exist
                 if (u == null || ev == null) {
                     bookingOutput.setText("User or event not found.");
                     return;
                 }
 
-                // Event must be ACTIVE
+                // Only active events can be booked
                 if (ev.getStatus() != enums.EventStatus.ACTIVE) {
                     bookingOutput.setText("Event is not active.");
                     return;
                 }
 
-                // Prevent duplicate (same user + event, not cancelled)
+                // Prevents the same user from booking the same event more than 1
+                // unless if their previous booking was cancelled
                 for (Booking b : bookings.values()) {
                     if (b.getUser().equals(u) && b.getEvent().equals(ev) && b.getStatus() != BookingStatus.CANCELLED) {
                         bookingOutput.setText("User already booked this event.");
@@ -421,59 +474,87 @@ public class HelloApplication extends Application {
                 }
 
                 Booking newBooking;
+
+                // If the event still has capacity, booking is confirmed immediately
                 if (ev.hasCapacity()) {
                     newBooking = new Booking(bookingId, u, ev, BookingStatus.CONFIRMED);
                     ev.addConfirmedBooking(newBooking);
 
+                    // Keep the waitlist manager's confirmed list in sync
                     waitlistManager.addToConfirmed(ev, u);
 
                 } else {
+                    // If event is full, the booking of the user will be on waitlist
                     newBooking = new Booking(bookingId, u, ev, BookingStatus.WAITLISTED);
                     ev.addToWaitlist(newBooking);
 
+                    // Keep the waitlist manager's confirmed list in sync
                     waitlistManager.addToWaitlist(ev, u);
                 }
 
+                // Stores the booking in the main list
                 bookings.put(bookingId, newBooking);
+
+                // Refreshes the booking and event displays
                 refreshBookings();
-                refreshEvents(); // reflect capacity change
+                refreshEvents();
+
+                // Shows an error message if booking fails
             } catch (Exception ex) {
                 bookingOutput.setText("CREATE BOOKING ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             }
         });
 
+        // Refreshes the booking display when the "Refresh Bookings" button is clicked
         refreshBookingsBtn.setOnAction(e -> refreshBookings());
 
+        // Runs when the user clicks the "Cancel Booking" button
         cancelBookingBtn.setOnAction(e -> {
+            // Reads the booking ID the user entered
             String id = cancelBookingId.getText().trim();
+
+            // Validates the string was not empty
             if (id.isEmpty()) {
                 bookingOutput.setText("Enter booking ID to cancel.");
                 return;
             }
+
+            // lookup the booking id in the bookings map
             Booking b = bookings.get(id);
+
+            // Error message if booking is not found
             if (b == null) {
                 bookingOutput.setText("Booking not found: " + id);
                 return;
             }
+
+            // Error message if the booking is already cancelled
             if (b.getStatus() == BookingStatus.CANCELLED) {
                 bookingOutput.setText("Already cancelled.");
                 return;
             }
 
+            // Gets the event linked to this booking
             Event ev = b.getEvent();
+
+            // Checks to see if the booking was confirmed
             boolean wasConfirmed = b.getStatus() == BookingStatus.CONFIRMED;
 
+            // Marks the booking as cancelled and removes it from the booking map
             b.setStatus(BookingStatus.CANCELLED);
             bookings.remove(id);
 
             if (wasConfirmed) {
-                ev.removeConfirmedBooking(b);
+                ev.removeConfirmedBooking(b); // Removes cancelled booking from events confirmed list
 
+                // Lets the waitlist manager cancel the confirmed users list
+                // Also promotes any user if availible
                 PromotionResult result = waitlistManager.cancelConfirmedWithResult(ev, b.getUser());
 
                 if (result.isPromoted()) {
                     User promotedUser = result.getPromotedUser();
 
+                    // finds promoted users booking in the event waitlist
                     Booking promotedBooking = null;
                     for (Booking wb : ev.getWaitlist()) {
                         if (wb.getUser().equals(promotedUser)) {
@@ -482,6 +563,7 @@ public class HelloApplication extends Application {
                         }
                     }
 
+                    // Move the booking from waitlist to confirmed
                     if (promotedBooking != null) {
                         ev.removeFromWaitlist(promotedBooking);
                         promotedBooking.setStatus(BookingStatus.CONFIRMED);
@@ -489,11 +571,13 @@ public class HelloApplication extends Application {
                     }
                 }
 
+                // If booking was only waitlisted, remove it from event waitlist
             } else {
                 ev.removeFromWaitlist(b);
                 waitlistManager.removeFromWaitlist(ev, b.getUser());
             }
 
+            // Refresh booking and event displays after cancellation
             refreshBookings();
             refreshEvents();
         });
@@ -501,7 +585,7 @@ public class HelloApplication extends Application {
         // Initial sample data
         seedSampleData();
 
-        // Shows main screen
+        // Configure and show the main application window
         stage.setTitle("OPP Final Project");
         stage.setScene(mainScene);
         stage.show();
