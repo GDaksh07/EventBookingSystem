@@ -17,11 +17,19 @@ import Waitlist_Management.PromotionResult;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Polygon;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -62,36 +70,144 @@ public class HelloApplication extends Application {
     @Override
     public void start(Stage stage) {
 
+        // University of Guelph colour theme used throughout the GUI
+        String pageBackgroundStyle = "-fx-background-color: #ECECEC;";
+        String whiteTopBarStyle = "-fx-background-color: white;";
+        String blackHeaderStyle = "-fx-background-color: black;";
+        String navButtonStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 10 18 10 18;";        String featuredCardStyle = "-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #D9D9D9; -fx-border-radius: 8;";
+        String redActionButtonStyle = "-fx-background-color: #C20430; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 4;";
+
         // Main Menu displayed on the main menu screen
-        Label title = new Label("OPP Final Project - Main Menu");
+        Label title = new Label("UNIVERSITY OF\nGUELPH");
+        title.setStyle("-fx-text-fill: white; -fx-font-size: 30px; -fx-font-weight: bold;");
+
+        title.setTranslateX(-75); // Moves it left by 75 pixels
+
+        // Gets the UofG logo from the resource folder
+        Image logoImage = new Image(getClass().getResourceAsStream("/Uofg_logo.png"));
+
+        // Loads the image and sets the height
+        ImageView logoView = new ImageView(logoImage);
+        logoView.setFitHeight(85);
+        logoView.setPreserveRatio(true);
+
+        logoView.setTranslateX(-75); // Moves it left by 75 pixels
 
         // Creates buttons for each topic so the user can navigate to each section
-        Button eventBtn = new Button("Event Management");
-        Button userBtn = new Button("User Management");
-        Button waitlistBtn = new Button("Waitlist (View Only)");
-        Button bookingBtn = new Button("Booking Management");
+        Button eventBtn = new Button("Events");
+        Button userBtn = new Button("Users");
+        Button waitlistBtn = new Button("Waitlist");
+        Button bookingBtn = new Button("Bookings");
 
-        // Sets the width of each button
-        eventBtn.setPrefWidth(200);
-        userBtn.setPrefWidth(200);
-        waitlistBtn.setPrefWidth(200);
-        bookingBtn.setPrefWidth(200);
+        // Styles the navigation buttons so they look like website navigation links
+        eventBtn.setStyle(navButtonStyle);
+        userBtn.setStyle(navButtonStyle);
+        waitlistBtn.setStyle(navButtonStyle);
+        bookingBtn.setStyle(navButtonStyle);
 
-        // VBox arranges the components vertically with 12 pixel spacing
-        // Basis of the main menu layout
-        VBox mainRoot = new VBox(12, title, eventBtn, userBtn, waitlistBtn, bookingBtn);
+        // Same top as the official UofG website excluding our buttons
+        // White strip at the very top
+        Region whiteTopBar = new Region();
+        whiteTopBar.setPrefHeight(26);
+        whiteTopBar.setStyle(whiteTopBarStyle);
 
-        // Adds padding around the VBox so the elements are not touching the windows edge
-        mainRoot.setPadding(new Insets(18));
+        // Red triangular accent
+        Polygon redAccent = new Polygon(
+                -15,-10,
+                25,-10,
+                80,105,
+                -15,105
+        );
+        redAccent.setFill(Color.web("#C20430")); // Sets colour to red
 
-        // Creates the main menu screen to be 600 width and 420 height
-        Scene mainScene = new Scene(mainRoot, 600, 420);
+        // Yellow triangular accent
+        Polygon goldAccent = new Polygon(
+                -15,-10,
+                70,-10,
+                -15,105
+        );
+        goldAccent.setFill(Color.web("#FFC72C")); // Sets colour to yellow
+
+        // Create a Pane container to hold the accent shapes (red and gold triangles)
+        // A Pane allows manual positioning of shapes without automatic layout adjustments
+        Pane accentPane = new Pane();
+        accentPane.setPrefSize(140, 95); // Set the preferred size of the Pane so it occupies a consistent space in the header
+        accentPane.setMinSize(140, 95); // Prevent the Pane from shrinking smaller than the defined size
+        accentPane.setMaxSize(140, 95); // Prevent the Pane from expanding larger than the defined size
+
+        // Added the accent shapes to the pane in the order they should be place
+        // Since gold was added first, the red can cover it as it is on the official website
+        accentPane.getChildren().addAll(goldAccent, redAccent);
+
+        // Container that holds the logo image and the "UNIVERSITY OF GUELPH" text side-by-side
+        // The spacing value (12) controls the horizontal gap between the logo and the title
+        HBox logoAndTitleBox = new HBox(12, logoView, title);
+        logoAndTitleBox.setAlignment(Pos.CENTER_LEFT); // Aligns the logo and text vertically towards the left
+
+        // Container that groups the accent triangles and the logo/title area together
+        // The spacing value (18) controls the distance between the accent shapes and the branding
+        HBox leftBranding = new HBox(18, accentPane, logoAndTitleBox);
+        leftBranding.setPadding(new Insets(10, 20, 10, 12)); // Adds padding so it does not touch the edges of the header
+        leftBranding.setStyle(blackHeaderStyle); // applies black background style used for the top header bar
+        leftBranding.setAlignment(Pos.CENTER_LEFT); // positioned left and vertically centered
+
+        // Creates the navigation bar that holds the screen navigation buttons
+        // Horizontal navigation bar to create a website feel
+        // 45 pixel spacing between each button
+        HBox navBar = new HBox(45, eventBtn, userBtn, waitlistBtn, bookingBtn);
+        navBar.setPadding(new Insets(0, 0, 0, 120)); // padding so the bar is pushed more to the right
+        navBar.setStyle(blackHeaderStyle); // Applies same black background style to the rest of the header
+        navBar.setAlignment(Pos.CENTER); // Centers navigation buttons vertically and horizontally within the nav bar
+        HBox.setHgrow(navBar, Priority.ALWAYS); // Allows nav bar to expand and fill any unfilled horizontal space
+
+        // Combines the branding section (triangles + logo/title) and the navigation bar
+        // This forms the full header row displayed at the top of the application
+        HBox headerBar = new HBox(leftBranding, navBar);
+        headerBar.setStyle(blackHeaderStyle); // Applies the same black background style so the entire row appears as one header
+        headerBar.setAlignment(Pos.CENTER_LEFT); // Keeps all header content vertically centered and aligned from the left
+        HBox.setHgrow(navBar, Priority.ALWAYS); // Ensures the navigation section grows if the window width increases
+
+        // Featured/current event section title
+        Label featuredTitle = new Label("Featured / Current Event");
+        featuredTitle.setStyle("-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: black;");
+
+        // Featured/current event content
+        Label featuredBody = new Label(
+                "Welcome to the University of Guelph Event Booking System.\n\n" +
+                        "Use the navigation above to manage events, users, waitlists, and bookings.\n" +
+                        "Current featured item: Sample Concert and active campus event management."
+        );
+        featuredBody.setStyle("-fx-font-size: 16px; -fx-text-fill: black;");
+
+        // Action button under featured area
+        Button featuredActionBtn = new Button("Try Again");
+        featuredActionBtn.setStyle(redActionButtonStyle); // Apply the red styling used on the official page
+        featuredActionBtn.setPrefWidth(160); // fixed width of button
+        featuredActionBtn.setPrefHeight(45); // fixed height of button
+        featuredActionBtn.setDisable(true); // disabled button for now so it can be implemented later
+
+        // Container for the featured content card on the homepage
+// The spacing value (18) controls the vertical gap between the title, description, and button
+        VBox featuredCard = new VBox(18, featuredTitle, featuredBody, featuredActionBtn);
+        featuredCard.setPadding(new Insets(35)); // Adds padding inside the card so the content does not touch the edges
+        featuredCard.setStyle(featuredCardStyle); // Applies the styling used for the featured card (background, border, etc.)
+
+        // Main vertical layout for the home screen
+        // Layout is like the official website, white bar at the top, main header bar and added featured card
+        VBox mainRoot = new VBox(0, whiteTopBar, headerBar, featuredCard);
+        mainRoot.setStyle(pageBackgroundStyle); // Applies the overall page background styling
+        mainRoot.setPadding(new Insets(0, 0, 30, 0));
+        featuredCard.setTranslateX(20); // Manually shifted card to the right
+        featuredCard.setTranslateY(20); // Manually shifted card upwards
+
+        // Creates the main menu screen to be wider like a website page
+        Scene mainScene = new Scene(mainRoot, 1200, 700);
 
 
         // Event Screen
         eventOutput = new TextArea(); // Text area to display event info
         eventOutput.setEditable(false); // prevents the user from editing the text
-        eventOutput.setPrefHeight(160); // sets a fixed height for the output display area
+        eventOutput.setPrefHeight(220); // sets a fixed height for the output display area
 
         // Inputs
         // Text fields for where the user enters certain info
@@ -139,15 +255,30 @@ public class HelloApplication extends Application {
 
         // Builds the full event management screen layout
         // Stacks the specific items, like HBox and labels
-        VBox eventRoot = new VBox(10, new Label("Event Management"), eventOutput, evFormRow1, evFormRow2, evFormRow3, backFromEvent);
+        Label eventHeader = new Label("Event Management"); // Section header label displayed at the top of the Event Management screen
+
+        // Apply styling to the header text to make it stand out
+        // Uses a larger font size, bold weight, and the university red color for consistency
+        eventHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
+
+        // Main vertical layout container for the entire Event Management screen
+        VBox eventRoot = new VBox(10, eventHeader, eventOutput, evFormRow1, evFormRow2, evFormRow3, backFromEvent);
         eventRoot.setPadding(new Insets(12)); // Adds padding around the event screen layout
-        Scene eventScene = new Scene(eventRoot, 800, 500); // Creates the scene for the Event Management screen
+        eventRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
+
+        // Adds styling to the specific buttons
+        createEventBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        refreshEventsBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        cancelEventBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        backFromEvent.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+
+        Scene eventScene = new Scene(eventRoot, 1200, 700); // Creates the scene for the Event Management screen
 
 
         // User Screen
         userOutput = new TextArea(); // Text area to display user related messages
         userOutput.setEditable(false); // Prevents user from typing inside output area
-        userOutput.setPrefHeight(200); // Sets a fixed height for the display area
+        userOutput.setPrefHeight(240); // Sets a fixed height for the display area
 
         // User inputs
         TextField userName = new TextField(); // Text field for first name
@@ -198,29 +329,56 @@ public class HelloApplication extends Application {
         HBox userFormRow2 = new HBox(8, addUserBtn, refreshUsersBtn, viewUserId, viewUserBtn, removeUserId, removeUserBtn);
 
         // Vertical layout that builds the full User Management screen
-        VBox userRoot = new VBox(10, new Label("User Management"), userOutput, userFormRow, userFormRow2, backFromUser);
+        Label userHeader = new Label("User Management"); // Section header label displayed at the top of the User Management screen
 
+        // Apply styling to the header text to make it stand out
+        // Uses a larger font size, bold weight, and the university red color for consistency
+        userHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
+
+        // Main vertical layout container for the entire User Management screen
+        VBox userRoot = new VBox(10, userHeader, userOutput, userFormRow, userFormRow2, backFromUser);
         userRoot.setPadding(new Insets(12)); // Padding - 12 pixels of whitespace on all sides so it doesn't touch edges
-        Scene userScene = new Scene(userRoot, 1100, 520); // Creates the scene used for the User Management screen
+        userRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
+
+        // Adds styling for the specific buttons
+        addUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        refreshUsersBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        removeUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        viewUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        backFromUser.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+
+        Scene userScene = new Scene(userRoot, 1200, 700); // Creates the scene used for the User Management screen
 
 
         // Waitlist Viewer (read only)
         TextArea waitlistOutput = new TextArea(); // Text area to display waitlist information
         waitlistOutput.setEditable(false); // Prevents editing since this screen is only used for viewing
-        waitlistOutput.setPrefHeight(400); // Sets the display height of the waitlist output
+        waitlistOutput.setPrefHeight(420); // Sets the display height of the waitlist output
 
         Button backFromWaitlist = new Button("Back"); // Back button to return to main menu
 
         // Creates the layout for the waitlist viewer screen
-        VBox waitRoot = new VBox(10, new Label("Waitlist View (per event)"), waitlistOutput, backFromWaitlist);
+        Label waitHeader = new Label("Waitlist View (per event)"); // Section header label displayed at the top of the Waitlist Management screen
+
+        // Apply styling to the header text to make it stand out
+        // Uses a larger font size, bold weight, and the university red color for consistency
+        waitHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
+
+        // Main vertical layout container for the entire User Management screen
+        VBox waitRoot = new VBox(10, waitHeader, waitlistOutput, backFromWaitlist);
         waitRoot.setPadding(new Insets(12)); // Adds padding around the layout
-        Scene waitScene = new Scene(waitRoot, 700, 500); // Creates the scene used for the waitlist viewer
+        waitRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
+
+        // Adds styling for the back button
+        backFromWaitlist.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+
+        Scene waitScene = new Scene(waitRoot, 1200, 700); // Creates the scene used for the waitlist viewer
 
 
         // Booking Screen
         bookingOutput = new TextArea(); // Text area used to display booking related messages
         bookingOutput.setEditable(false); // Prevents user from typing in output area
-        bookingOutput.setPrefHeight(200); // Sets a fixed height for the booking display area
+        bookingOutput.setPrefHeight(240); // Sets a fixed height for the booking display area
 
         // Dropdown menu for selecting a user when creating a booking
         bookingUserCombo = new ComboBox<>();
@@ -249,9 +407,24 @@ public class HelloApplication extends Application {
         HBox bookingRow2 = new HBox(8, createBookingBtn, refreshBookingsBtn, cancelBookingId, cancelBookingBtn);
 
         // Main vertical layout for the Booking Management screen
-        VBox bookingRoot = new VBox(10, new Label("Booking Management"), bookingOutput, bookingRow1, bookingRow2, backFromBooking);
+        Label bookingHeader = new Label("Booking Management"); // Section header label displayed at the top of the Booking Management screen
+
+        // Apply styling to the header text to make it stand out
+        // Uses a larger font size, bold weight, and the university red color for consistency
+        bookingHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
+
+        // Main vertical layout container for the entire User Management screen
+        VBox bookingRoot = new VBox(10, bookingHeader, bookingOutput, bookingRow1, bookingRow2, backFromBooking);
         bookingRoot.setPadding(new Insets(12)); // Adds padding around the booking layout
-        Scene bookingScene = new Scene(bookingRoot, 900, 520); // Creates the scene used for the Booking Management screen
+        bookingRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
+
+        // Adds styling for the specific buttons
+        createBookingBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        refreshBookingsBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        cancelBookingBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        backFromBooking.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+
+        Scene bookingScene = new Scene(bookingRoot, 1200, 700); // Creates the scene used for the Booking Management screen
 
 
         // Navigation between the screens
@@ -531,7 +704,7 @@ public class HelloApplication extends Application {
 
                 // Prevents duplicated bookings
                 if (bookings.containsKey(bookingId)) {
-                    userOutput.setText("User ID already exists.");
+                    bookingOutput.setText("Booking ID already exists.");
                     return;
                 }
 
