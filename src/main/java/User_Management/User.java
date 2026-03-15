@@ -6,7 +6,7 @@ import java.util.Objects;
 
 public class User {
 
-    private String name;
+    private String name; //Lets know of attributes
     private String surname;
     private int day, month, year;
     private int id;
@@ -33,7 +33,7 @@ public class User {
 
     // Setters
     public void setName(String name) {
-        if (name == null || name.trim().isEmpty())
+        if (name == null || name.trim().isEmpty()) // Checks to see if name exists after spaces before and after are removed
             throw new IllegalArgumentException("Name cannot be empty.");
         this.name = name.trim();
     }
@@ -41,7 +41,7 @@ public class User {
     public void setSurname(String surname) {
         if (surname == null || surname.trim().isEmpty())
             throw new IllegalArgumentException("Surname cannot be empty.");
-        this.surname = surname.trim();
+        this.surname = surname.trim(); //Deletes unnessecary spaces
     }
 
     public void setBirthdate(int month, int day, int year) {
@@ -58,7 +58,7 @@ public class User {
     }
 
     public void setID(int id) {
-        if (id < 0 || id > 9999999)
+        if (id < 0 || id > 9999999) //Should be 7 ID digits, should check if its always 7 digits
             throw new IllegalArgumentException("Invalid ID.");
         this.id = id;
     }
@@ -86,12 +86,12 @@ public class User {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof User user)) return false;
+        if (!(o instanceof User user)) return false; //If user doesn't already exist
         return id == user.id;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id);
-    }
+    } //Connects ID to values in HAshmap, if user leads to pre-existing space, notices duplicate
 }
