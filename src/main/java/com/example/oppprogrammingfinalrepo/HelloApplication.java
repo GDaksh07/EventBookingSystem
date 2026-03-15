@@ -9,6 +9,7 @@ import Event_Management.Workshop;
 import User_Management.User;
 import enums.BookingStatus;
 import enums.EventType;
+import enums.UserType;
 import Waitlist_Management.WaitlistManager;
 import Waitlist_Management.PromotionResult;
 
@@ -167,25 +168,40 @@ public class HelloApplication extends Application {
         TextField userIdField = new TextField(); // Text field for student number
         userIdField.setPromptText("ID (integer, <=999999)");
 
+        TextField userEmail = new TextField(); // Text field for email
+        userEmail.setPromptText("Email");
+
+        // Dropdown menu to choose which user is being created
+        ComboBox<UserType> userTypeCombo = new ComboBox<>();
+        userTypeCombo.getItems().addAll(UserType.STUDENT, UserType.STAFF, UserType.GUEST);
+        userTypeCombo.setValue(UserType.STUDENT); // Defaults to student originally
+
+        Label userTypeLabel = new Label("User Type:"); // Label displayed for the dropdown
+
+        TextField removeUserId = new TextField(); // Text field where the user enters the ID of a user to remove
+        removeUserId.setPromptText("User ID to remove");
+
+        TextField viewUserId = new TextField(); // Text field where the user can view another user by their id
+        viewUserId.setPromptText("User ID to view");
+
         // Buttons
         Button addUserBtn = new Button("Add User");
         Button refreshUsersBtn = new Button("Refresh Users");
-        TextField removeUserId = new TextField(); // Text field where the user enters the ID of a user to remove
-        removeUserId.setPromptText("User ID to remove");
         Button removeUserBtn = new Button("Remove User");
         Button backFromUser = new Button("Back");
+        Button viewUserBtn = new Button("View User Details");
 
         // First horizontal row containing all user input fields
-        HBox userFormRow = new HBox(8, userName, userSurname, userMonth, userDay, userYear, userIdField);
+        HBox userFormRow = new HBox(8, userName, userSurname, userEmail, userMonth, userDay, userYear, userIdField, userTypeLabel, userTypeCombo);
 
         // Second horizontal row containing action buttons and removal field
-        HBox userFormRow2 = new HBox(8, addUserBtn, refreshUsersBtn, removeUserId, removeUserBtn);
+        HBox userFormRow2 = new HBox(8, addUserBtn, refreshUsersBtn, viewUserId, viewUserBtn, removeUserId, removeUserBtn);
 
         // Vertical layout that builds the full User Management screen
         VBox userRoot = new VBox(10, new Label("User Management"), userOutput, userFormRow, userFormRow2, backFromUser);
 
         userRoot.setPadding(new Insets(12)); // Padding - 12 pixels of whitespace on all sides so it doesn't touch edges
-        Scene userScene = new Scene(userRoot, 900, 520); // Creates the scene used for the User Management screen
+        Scene userScene = new Scene(userRoot, 1100, 520); // Creates the scene used for the User Management screen
 
 
         // Waitlist Viewer (read only)
@@ -312,6 +328,13 @@ public class HelloApplication extends Application {
                 // Adds the new event to the list
                 events.add(created);
 
+                // Clears event inputs after creation
+                evTitle.clear();
+                evDate.clear();
+                evLocation.clear();
+                evCapacity.clear();
+                extraField.clear();
+
                 // Refresh the event screen to show the new event
                 refreshEvents();
             } catch (Exception ex) {
@@ -382,13 +405,28 @@ public class HelloApplication extends Application {
                 int d = Integer.parseInt(userDay.getText().trim());
                 int y = Integer.parseInt(userYear.getText().trim());
                 int id = Integer.parseInt(userIdField.getText().trim());
+                UserType type = userTypeCombo.getValue();
+                String email = userEmail.getText().trim();
+
+                // Prevents users from being duplicated using the same id
+                if (findUserById(id) != null) {
+                    userOutput.setText("User ID already exists.");
+                    return;
+                }
 
                 // Creates a new user object using the entered information
-                // This constructor is currently only defaulted to everyone being a student
-                User u = new User(n, s, m, d, y, id);
-                // Still need to add STAFF and GUEST
+                User u = new User(n, s, m, d, y, id, email, type);
 
                 users.add(u); // Adds the users to the main user list
+
+                // Clears the input fields after adding a user
+                userName.clear();
+                userSurname.clear();
+                userEmail.clear();
+                userMonth.clear();
+                userDay.clear();
+                userYear.clear();
+                userIdField.clear();
 
                 refreshUsers(); // Refreshes the user display to show the new user
 
@@ -428,6 +466,59 @@ public class HelloApplication extends Application {
             }
         });
 
+        // Runs when user clicks view user button
+        viewUserBtn.setOnAction(e -> {
+            try {
+                // Reads the ID entered in the "view user" screen
+                int id = Integer.parseInt(viewUserId.getText().trim());
+                User found = findUserById(id); // Searches the user list for a matching user id
+
+                // If no user is found program outputs an error message
+                if (found == null) {
+                    userOutput.setText("User not found: " + id);
+                    return;
+                }
+
+                // Stringbuilder to construct the display efficiently
+                StringBuilder sb = new StringBuilder();
+
+                // Displays the selected users information
+                sb.append("User Details\n");
+                sb.append("ID: ").append(found.getID()).append("\n");
+                sb.append("Name: ").append(found.getName()).append(" ").append(found.getSurname()).append("\n");
+                sb.append("Email: ").append(found.getEmail()).append("\n");
+                sb.append("Birthdate: ").append(found.getBirthdate()).append("\n");
+                sb.append("Type: ").append(found.getUserType()).append("\n\n");
+                sb.append("Bookings:\n");
+
+                boolean hasBookings = false; // Tracks weather the user has any bookings
+
+                // Loops through all bookings in system
+                for (Booking b : bookings.values()) {
+                    if (b.getUser().equals(found)) {
+                        // Displays booking details of event and status
+                        sb.append("- ")
+                                .append(b.getBookingId())
+                                .append(" | event=").append(b.getEvent().getEventId())
+                                .append(" | ").append(b.getEvent().getTitle())
+                                .append(" | status=").append(b.getStatus())
+                                .append("\n");
+                        hasBookings = true;
+                    }
+                }
+
+                // If user has no bookings, it displays this message
+                if (!hasBookings) {
+                    sb.append("No bookings found.");
+                }
+
+                userOutput.setText(sb.toString()); // Outputs the comlpleted text
+
+            } catch (Exception ex) {
+                userOutput.setText("VIEW USER ERROR: " + ex.getMessage()); // Handles invalid input
+            }
+        });
+
 
         // Actions: BOOKINGS
         // Runs when user clicks the "Create Booking" button
@@ -437,6 +528,12 @@ public class HelloApplication extends Application {
                 String bookingId = bookingIdField.getText().trim();
                 String userEntry = bookingUserCombo.getValue();
                 String eventEntry = bookingEventCombo.getValue();
+
+                // Prevents duplicated bookings
+                if (bookings.containsKey(bookingId)) {
+                    userOutput.setText("User ID already exists.");
+                    return;
+                }
 
                 // Makes sure all required inputs were provided
                 if (bookingId.isEmpty() || userEntry == null || eventEntry == null) {
@@ -599,6 +696,8 @@ public class HelloApplication extends Application {
         // StringBuilder is used to build the display text
         StringBuilder sb = new StringBuilder();
 
+        events.sort(Comparator.comparing(Event::getDateTime)); // Sorts by Date
+
         // Loops through every event in the event list
         for (Event ev : events) {
             sb.append(ev.getEventId())
@@ -609,6 +708,27 @@ public class HelloApplication extends Application {
                     .append(" | Confirmed: ").append(ev.getConfirmedBookings().size())
                     .append(" | Waitlist: ").append(ev.getWaitlist().size())
                     .append("\n");
+
+            // Loops through all confirmed bookings for this event
+            // and displays the name of each user successfully booked for that event
+            for (Booking b : ev.getConfirmedBookings()) {
+                sb.append("   - ").append(b.getUser().getName())
+                        .append(" ").append(b.getUser().getSurname())
+                        .append("\n");
+            }
+
+            // Only displays the waitlist section if the event has users in the waitlist
+            if (!ev.getWaitlist().isEmpty()) {
+                sb.append("   Waitlist:\n");
+
+                // Loops through all confirmed bookings currently on the waitlist
+                // and displays the name of each user on the waitlist for that event
+                for (Booking b : ev.getWaitlist()) {
+                    sb.append("   - ").append(b.getUser().getName())
+                            .append(" ").append(b.getUser().getSurname())
+                            .append("\n");
+                }
+            }
         }
 
         eventOutput.setText(sb.toString()); // Displays the text in the event output area
@@ -619,22 +739,27 @@ public class HelloApplication extends Application {
 
 
     // Refreshes the user display area with the latest user information
+    // Refreshes the user display area with the latest user information
     private void refreshUsers() {
-        // StringBuilder is used to build the display text
         StringBuilder sb = new StringBuilder();
 
-        // Loops through every user in the user list
+        // Header row
+        sb.append(String.format("%-10s %-15s %-15s %-38s %-15s %-10s%n",
+                "ID", "Name", "Surname", "Email", "Birthdate", "Type"));
+
+        // User rows
         for (User u : users) {
-            sb.append(u.getID())
-                    .append(" - ").append(u.getName())
-                    .append(" ").append(u.getSurname())
-                    .append(" | ").append(u.getBirthdate())
-                    .append("\n");
+            sb.append(String.format("%-10d %-15s %-15s %-25s %-12s %-10s%n",
+                    u.getID(),
+                    u.getName(),
+                    u.getSurname(),
+                    u.getEmail(),
+                    u.getBirthdate(),
+                    u.getUserType()));
         }
 
-        userOutput.setText(sb.toString()); // Displays completed text in the  user output area
+        userOutput.setText(sb.toString());
 
-        // Update the booking dropdowns in case the user list changed
         refreshBookingCombos();
     }
 
@@ -649,7 +774,9 @@ public class HelloApplication extends Application {
             sb.append(b.getBookingId())
                     .append(" | user=").append(b.getUser().getID())
                     .append(" | event=").append(b.getEvent().getEventId())
+                    .append(" (").append(b.getEvent().getTitle()).append(")")
                     .append(" | status=").append(b.getStatus())
+                    .append(" | created=").append(b.getWhenCreated().format(DISPLAY_FMT))
                     .append("\n");
         }
 
@@ -694,7 +821,8 @@ public class HelloApplication extends Application {
         // Creates a list of user display strings for the user ComboBox
         List<String> uList = new ArrayList<>();
         for (User u : users) {
-            uList.add(u.getID() + " - " + u.getName());
+            uList.add(u.getID() + " - " + u.getName() + " " + u.getSurname()
+                    + " (" + u.getUserType() + ")");
         }
 
         // Replace the items inside the user comboBox
@@ -703,7 +831,8 @@ public class HelloApplication extends Application {
         // Creates a list of event display strings for the event ComboBox
         List<String> evList = new ArrayList<>();
         for (Event ev : events) {
-            evList.add(ev.getEventId() + " - " + ev.getTitle());
+            evList.add(ev.getEventId() + " - " + ev.getTitle()
+                    + " (" + ev.getDateTime().format(DISPLAY_FMT) + ")");
         }
 
         // Replace the current items in the event ComboBox
@@ -729,7 +858,7 @@ public class HelloApplication extends Application {
     private void seedSampleData() {
         // Add sample user
         try {
-            users.add(new User("Aiden", "Gabriel", 8, 30, 2007, 138849));
+            users.add(new User("Aiden", "Gabriel", 8, 30, 2007, 138849, "agabriel@uoguelph.ca", UserType.STUDENT));
         } catch (Exception ignored) {}
 
         // Add sample event (safe defaults)
