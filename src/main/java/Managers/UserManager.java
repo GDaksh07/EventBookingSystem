@@ -52,6 +52,9 @@ public class UserManager {
                     int typeChoice = scanner.nextInt();
                     scanner.nextLine();
 
+                    System.out.print("Enter Email: ");
+                    String email = scanner.nextLine();
+
                     UserType userType;
 
                     switch (typeChoice) {
@@ -65,7 +68,7 @@ public class UserManager {
                     }
                     // If anything failed it will catch it and gives a error message
                     try {
-                        users.add(new User(name, surname, month, day, year, id, userType));
+                        users.add(new User(name, surname, month, day, year, id, email, userType));
                         System.out.println("User added successfully!");
                     } catch (IllegalArgumentException e) {
                         System.out.println(e.getMessage());
@@ -94,8 +97,8 @@ public class UserManager {
                     if (users.isEmpty()) {
                         System.out.println("No users available.");
                     } else {
-                        System.out.printf("%-10s %-15s %-15s %-12s%n",
-                                "ID", "Name", "Surname", "Birthdate");
+                        System.out.printf("%-10s %-15s %-15s %-20s %-12s %-10s%n",
+                                "ID", "Name", "Surname", "Email", "Birthdate", "Type");
                         for (User u : users) System.out.println(u);
                     }
                 }

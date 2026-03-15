@@ -11,19 +11,16 @@ public class User {
     private int day, month, year;
     private int id;
     private UserType userType;
-
-    // Backward-compatible constructor (defaults to STUDENT)
-    public User(String name, String surname, int month, int day, int year, int id) {
-        this(name, surname, month, day, year, id, UserType.STUDENT);
-    }
+    private String email;
 
     // Full constructor
-    public User(String name, String surname, int month, int day, int year, int id, UserType userType) {
+    public User(String name, String surname, int month, int day, int year, int id, String email, UserType userType) {
         setName(name);
         setSurname(surname);
         setBirthdate(month, day, year);
         setID(id);
         setUserType(userType);
+        setEmail(email);
     }
 
     // Getters
@@ -32,6 +29,7 @@ public class User {
     public String getBirthdate() { return String.format("%02d/%02d/%04d", month, day, year); }
     public int getID() { return id; }
     public UserType getUserType() { return userType; }
+    public String getEmail() { return email; }
 
     // Setters
     public void setName(String name) {
@@ -71,11 +69,17 @@ public class User {
         this.userType = userType;
     }
 
+    public void setEmail(String email) {
+        if (email == null || email.trim().isEmpty())
+            throw new IllegalArgumentException("Email cannot be empty.");
+        this.email = email;
+    }
+
     // Displays text
     @Override
     public String toString() {
-        return String.format("%-10d %-15s %-15s %-12s %-10s", //Formatting
-                id, name, surname, getBirthdate(), userType);
+        return String.format("%-10d %-15s %-15s %-25s %-12s %-10s",
+                id, name, surname, email, getBirthdate(), userType);
     }
 
     // Checks if 2 users are the same user
