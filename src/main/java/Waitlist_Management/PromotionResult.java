@@ -3,7 +3,7 @@ package Waitlist_Management;
 import Event_Management.Event;
 import User_Management.User;
 
-// This class is just used to return promotion info back to the UI.
+// This class is just used to return promotion info back to the UI
 public class PromotionResult {
 
     private final boolean promoted;   // tells us if someone was promoted
