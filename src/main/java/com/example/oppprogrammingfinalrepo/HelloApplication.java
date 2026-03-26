@@ -34,6 +34,12 @@ import javafx.scene.image.ImageView;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 
 public class HelloApplication extends Application {
 
@@ -891,7 +897,7 @@ public class HelloApplication extends Application {
         });
 
         // Initial sample data
-        seedSampleData();
+        loadInitialData();
 
         // Configure and show the main application window
         stage.setTitle("OPP Final Project");
@@ -997,6 +1003,224 @@ public class HelloApplication extends Application {
         refreshBookingCombos();
     }
 
+    // Format used in CSV (matches project file format)
+    private static final DateTimeFormatter CSV_DATE_TIME_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
+    // Loads all data at startup (users, events, bookings)
+    private void loadInitialData() {
+
+        // Clear existing data before loading fresh data
+        users.clear();
+        events.clear();
+        bookings.clear();
+
+        try {
+            // Load each file
+            loadUsersFromCsv("/users.csv");
+            loadEventsFromCsv("/events.csv");
+            loadBookingsFromCsv("/bookings.csv");
+
+            // Refresh GUI so data shows up
+            refreshUsers();
+            refreshEvents();
+            refreshBookings();
+
+        } catch (Exception e) {
+            System.out.println("LOAD ERROR: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // Opens a file from the resources folder
+    private BufferedReader openResourceFile(String resourcePath) {
+
+        InputStream in = getClass().getResourceAsStream(resourcePath);
+
+        if (in == null) {
+            throw new IllegalArgumentException("File not found: " + resourcePath);
+        }
+
+        return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+    }
+
+
+    // ===================== USERS =====================
+    private void loadUsersFromCsv(String path) throws IOException {
+
+        try (BufferedReader br = openResourceFile(path)) {
+
+            br.readLine(); // skip header row
+
+            String line;
+            while ((line = br.readLine()) != null) {
+
+                if (line.trim().isEmpty()) continue;
+
+                String[] p = line.split(",", -1);
+
+                String idRaw = p[0].trim();
+                String fullName = p[1].trim();
+                String email = p[2].trim();
+                String typeRaw = p[3].trim();
+
+                // Extract number from ID (handles U001 → 1)
+                int id = Integer.parseInt(idRaw.replaceAll("\\D+", ""));
+
+                // Split full name into first + last
+                String[] nameParts = fullName.split("\\s+", 2);
+                String first = nameParts.length > 0 ? nameParts[0] : "Unknown";
+                String last = nameParts.length > 1 ? nameParts[1] : "Unknown";
+
+                // Convert string to enum
+                UserType type = switch (typeRaw.toUpperCase()) {
+                    case "STUDENT" -> UserType.STUDENT;
+                    case "STAFF" -> UserType.STAFF;
+                    case "GUEST" -> UserType.GUEST;
+                    default -> throw new IllegalArgumentException("Invalid userType");
+                };
+
+                // Create user (dummy birthdate since class requires it)
+                User u = new User(first, last, 1, 1, 2000, id, email, type);
+
+                users.add(u);
+            }
+        }
+    }
+
+
+    // ===================== EVENTS =====================
+    private void loadEventsFromCsv(String path) throws IOException {
+
+        try (BufferedReader br = openResourceFile(path)) {
+
+            br.readLine(); // skip header row
+
+            String line;
+            while ((line = br.readLine()) != null) {
+
+                if (line.trim().isEmpty()) continue;
+
+                String[] p = line.split(",", -1);
+
+                String eventId = p[0].trim();
+                String title = p[1].trim();
+                LocalDateTime dt = LocalDateTime.parse(p[2].trim(), CSV_DATE_TIME_FMT);
+                String location = p[3].trim();
+                int capacity = Integer.parseInt(p[4].trim());
+                String status = p[5].trim();
+                String type = p[6].trim();
+
+                String topic = p[7].trim();
+                String speaker = p[8].trim();
+                String ageRaw = p[9].trim();
+
+                Event event;
+
+                // Create correct event type based on CSV
+                switch (type.toUpperCase()) {
+
+                    case "WORKSHOP" ->
+                            event = new Workshop(eventId, title, dt, location, capacity, topic);
+
+                    case "SEMINAR" ->
+                            event = new Seminar(eventId, title, dt, location, capacity, speaker);
+
+                    case "CONCERT" -> {
+                        int age = ageRaw.isBlank() ? 0 : Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
+                        event = new Concert(eventId, title, dt, location, capacity, age);
+                    }
+
+                    default -> throw new IllegalArgumentException("Invalid eventType");
+                }
+
+                // If event was cancelled in file, restore it
+                if (status.equalsIgnoreCase("Cancelled")) {
+                    event.cancelEvent();
+                }
+
+                events.add(event);
+            }
+        }
+    }
+
+
+    // ===================== BOOKINGS =====================
+    private void loadBookingsFromCsv(String path) throws IOException {
+
+        // Helper class to temporarily store booking rows
+        class Row {
+            String id;
+            int userId;
+            String eventId;
+            LocalDateTime time;
+            BookingStatus status;
+
+            Row(String id, int userId, String eventId, LocalDateTime time, BookingStatus status) {
+                this.id = id;
+                this.userId = userId;
+                this.eventId = eventId;
+                this.time = time;
+                this.status = status;
+            }
+        }
+
+        List<Row> rows = new ArrayList<>();
+
+        try (BufferedReader br = openResourceFile(path)) {
+
+            br.readLine(); // skip header
+
+            String line;
+            while ((line = br.readLine()) != null) {
+
+                if (line.trim().isEmpty()) continue;
+
+                String[] p = line.split(",", -1);
+
+                String id = p[0].trim();
+                int userId = Integer.parseInt(p[1].trim().replaceAll("\\D+", ""));
+                String eventId = p[2].trim();
+                LocalDateTime time = LocalDateTime.parse(p[3].trim(), CSV_DATE_TIME_FMT);
+
+                // Convert string to booking status
+                BookingStatus status = switch (p[4].trim().toUpperCase()) {
+                    case "CONFIRMED" -> BookingStatus.CONFIRMED;
+                    case "WAITLISTED" -> BookingStatus.WAITLISTED;
+                    case "CANCELLED" -> BookingStatus.CANCELLED;
+                    default -> throw new IllegalArgumentException("Invalid bookingStatus");
+                };
+
+                rows.add(new Row(id, userId, eventId, time, status));
+            }
+        }
+
+        // Sort bookings by time (VERY IMPORTANT for waitlist order)
+        rows.sort(Comparator.comparing(r -> r.time));
+
+        // Create booking objects
+        for (Row r : rows) {
+
+            User user = findUserById(r.userId);
+            Event event = findEventById(r.eventId);
+
+            if (user == null || event == null) continue;
+
+            // Create booking using correct timestamp
+            Booking b = new Booking(r.id, user, event, r.time, r.status);
+            bookings.put(r.id, b);
+
+            // Rebuild confirmed + waitlist state
+            if (r.status == BookingStatus.CONFIRMED) {
+                event.addConfirmedBooking(b);
+                waitlistManager.addToConfirmed(event, user);
+
+            } else if (r.status == BookingStatus.WAITLISTED) {
+                event.addToWaitlist(b);
+                waitlistManager.addToWaitlist(event, user);
+            }
+        }
+    }
 
     // Refreshes the waitlist viewer with confirmed users and waitlisted users for each event
     private void refreshWaitlist(TextArea waitlistOutput) {
@@ -1160,3 +1384,4 @@ public class HelloApplication extends Application {
         return new VBox(whiteTopBar, headerBar);
     }
 }
+
