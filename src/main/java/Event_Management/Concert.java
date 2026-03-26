@@ -8,8 +8,16 @@ public class Concert extends Event {
     private static int nextId = 1;
     private int ageRestriction;
 
+    // Normal constructor used when creating a new concert in the app
+    // This still auto-generates a new concert ID
     public Concert(String title, LocalDateTime dateTime, String location, int capacity, int ageRestriction) {
-        super(generateId(), title, dateTime, location, capacity);
+        this(generateId(), title, dateTime, location, capacity, ageRestriction);
+    }
+
+    // Second constructor used when loading concerts from file for Part 3.1
+    // This lets us keep the exact event ID from the CSV file
+    public Concert(String eventId, String title, LocalDateTime dateTime, String location, int capacity, int ageRestriction) {
+        super(eventId, title, dateTime, location, capacity);
         setEventType(EventType.CONCERT);
         setAgeRestriction(ageRestriction);
     }

@@ -8,13 +8,21 @@ public class Seminar extends Event {
     private static int nextId = 1;
     private String speakerName;
 
+    // Normal constructor (used in the app)
+    // Auto-generates ID
     public Seminar(String title, LocalDateTime dateTime, String location, int capacity, String speakerName) {
-        super(generateId(), title, dateTime, location, capacity);
+        this(generateId(), title, dateTime, location, capacity, speakerName);
+    }
+
+    // New constructor for Part 3.1 (loading from CSV)
+    // Uses the eventId from file instead of generating one
+    public Seminar(String eventId, String title, LocalDateTime dateTime, String location, int capacity, String speakerName) {
+        super(eventId, title, dateTime, location, capacity);
         setEventType(EventType.SEMINAR);
         setSpeakerName(speakerName);
     }
 
-    // Generates a unique ID for the event
+    // Generates unique ID for new seminars
     private static String generateId() {
         return "SEM" + (nextId++);
     }
@@ -24,7 +32,7 @@ public class Seminar extends Event {
         return speakerName;
     }
 
-    // Setter
+    // Setter with validation
     public void setSpeakerName(String speakerName) {
         if (speakerName == null || speakerName.trim().isEmpty())
             throw new IllegalArgumentException("speakerName cannot be empty.");
@@ -33,6 +41,8 @@ public class Seminar extends Event {
 
     @Override
     public String toString() {
-        return super.toString() + "\nSpeaker: " + speakerName.trim() + "\nEvent Type: " + this.getEventType();
+        return super.toString()
+                + "\nSpeaker: " + speakerName
+                + "\nEvent Type: " + this.getEventType();
     }
 }
