@@ -12,6 +12,12 @@ import enums.EventType;
 import enums.UserType;
 import Waitlist_Management.WaitlistManager;
 import Waitlist_Management.PromotionResult;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 
 // imports JavaFX classes to build the gui
 import javafx.application.Application;
@@ -47,6 +53,8 @@ public class HelloApplication extends Application {
     // Hashmap allows for quick lookup by their ID
     private final Map<String, Booking> bookings = new HashMap<>();
 
+    private int nextBookingId = 1; // Counter for auto-generating booking IDs
+
     // Date/time format used for parsing and display
     private static final DateTimeFormatter INPUT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"); // Used for reading input from user
     private static final DateTimeFormatter DISPLAY_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"); // Used for showing in the UI
@@ -56,10 +64,11 @@ public class HelloApplication extends Application {
 
     // UI controls referenced across methods
     // Displays the designated text in different spots of the program
-    // Textboxes
-    private TextArea eventOutput;
-    private TextArea userOutput;
+    // Textboxes or Tableviews
+    private TableView<Event> eventTable;
+    private TableView<User> userTable;
     private TextArea bookingOutput;
+    private TextArea waitlistOutput;
 
     // Dropdown menus in the GUI
     // Allows user to select from a selection of items in the dropdown
@@ -69,6 +78,15 @@ public class HelloApplication extends Application {
 
     @Override
     public void start(Stage stage) {
+        // Array to store all scenes
+        Scene[] scenes = new Scene[5]; // 0=main, 1=event, 2=user, 3=wait, 4=booking
+
+        // Declaration of the scenes for each part of the application
+        Scene mainScene;
+        Scene eventScene;
+        Scene userScene;
+        Scene waitScene;
+        Scene bookingScene;
 
         // University of Guelph colour theme used throughout the GUI
         String pageBackgroundStyle = "-fx-background-color: #ECECEC;";
@@ -104,6 +122,27 @@ public class HelloApplication extends Application {
         userBtn.setStyle(navButtonStyle);
         waitlistBtn.setStyle(navButtonStyle);
         bookingBtn.setStyle(navButtonStyle);
+
+        // Button event handlers to navigate between different application screens
+        eventBtn.setOnAction(e -> {
+            refreshEvents(); // Update event data before displaying the screen
+            stage.setScene(scenes[1]); // Switches to Event Management Screen
+        });
+
+        userBtn.setOnAction(e -> {
+            refreshUsers(); // Update user data before displaying the screen
+            stage.setScene(scenes[2]); // Switches to User Management screen
+        });
+
+        waitlistBtn.setOnAction(e -> {
+            refreshWaitlist(waitlistOutput); // Update waitlist display before showing it
+            stage.setScene(scenes[3]); // Switches to Waitlist screen
+        });
+
+        bookingBtn.setOnAction(e -> {
+            refreshBookings(); // Update booking data before displaying the screen
+            stage.setScene(scenes[4]); // Switches to Booking Management screen
+        });
 
         // Same top as the official UofG website excluding our buttons
         // White strip at the very top
@@ -187,27 +226,65 @@ public class HelloApplication extends Application {
         featuredActionBtn.setDisable(true); // disabled button for now so it can be implemented later
 
         // Container for the featured content card on the homepage
-// The spacing value (18) controls the vertical gap between the title, description, and button
+        // The spacing value (18) controls the vertical gap between the title, description, and button
         VBox featuredCard = new VBox(18, featuredTitle, featuredBody, featuredActionBtn);
         featuredCard.setPadding(new Insets(35)); // Adds padding inside the card so the content does not touch the edges
         featuredCard.setStyle(featuredCardStyle); // Applies the styling used for the featured card (background, border, etc.)
+        featuredCard.setMaxWidth(1160); // Controls how wide the white box is
+        featuredCard.setPrefWidth(900); // Controls how tall the white box is
 
         // Main vertical layout for the home screen
         // Layout is like the official website, white bar at the top, main header bar and added featured card
         VBox mainRoot = new VBox(0, whiteTopBar, headerBar, featuredCard);
         mainRoot.setStyle(pageBackgroundStyle); // Applies the overall page background styling
         mainRoot.setPadding(new Insets(0, 0, 30, 0));
-        featuredCard.setTranslateX(20); // Manually shifted card to the right
+        mainRoot.setAlignment(Pos.TOP_CENTER);
         featuredCard.setTranslateY(20); // Manually shifted card upwards
 
         // Creates the main menu screen to be wider like a website page
-        Scene mainScene = new Scene(mainRoot, 1200, 700);
+        mainScene = new Scene(mainRoot, 1200, 700);
+        scenes[0] = mainScene;
 
 
         // Event Screen
-        eventOutput = new TextArea(); // Text area to display event info
-        eventOutput.setEditable(false); // prevents the user from editing the text
-        eventOutput.setPrefHeight(220); // sets a fixed height for the output display area
+        eventTable = new TableView<>(); // Creates a new tableview to display event objects
+
+        // Create a column for Event ID
+        TableColumn<Event, String> eventIdCol = new TableColumn<>("ID");
+        // Define how to get the value for each cell (Event ID)
+        eventIdCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEventId()));
+
+        // Create a column for Event Title
+        TableColumn<Event, String> eventTitleCol = new TableColumn<>("Title");
+        // Set how the title is retrieved for each row
+        eventTitleCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getTitle()));
+
+        // Create a column for Event Date
+        TableColumn<Event, String> eventDateCol = new TableColumn<>("Date");
+        // Format the LocalDateTime into a readable string using DISPLAY_FMT
+        eventDateCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+                data.getValue().getDateTime().format(DISPLAY_FMT)));
+
+        // Create a column for Event Location
+        TableColumn<Event, String> eventLocCol = new TableColumn<>("Location");
+        // Retrieve the location value for each row
+        eventLocCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getLocation()));
+
+        // Create a column for Event Status (Active, Cancelled, etc.)
+        TableColumn<Event, String> eventStatusCol = new TableColumn<>("Status");
+        // Convert the status enum to a string for display
+        eventStatusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getStatus().toString()));
+
+        // Add all columns to the table
+        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventStatusCol);
+
+        // Make columns automatically resize to fill available width
+        eventTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        eventTable.setPrefHeight(240); // Sets preferred height of the table
+        eventTable.setMaxWidth(1100); // Limits max width of the table
+
+        eventTable.setEditable(false); // prevents the user from editing the text
+        eventTable.setPrefHeight(220); // sets a fixed height for the output display area
 
         // Inputs
         // Text fields for where the user enters certain info
@@ -245,13 +322,22 @@ public class HelloApplication extends Application {
         Button backFromEvent = new Button("Back");
 
         // First row of the event containing basic event details
-        HBox evFormRow1 = new HBox(8, evTitle, evDate, evLocation);
+        HBox evFormRow1 = new HBox(8, evTitle, evDate, evLocation, evCapacity, evType, extraField);
 
-        // Second row of event containing subclass information
-        HBox evFormRow2 = new HBox(8, evCapacity, evType, extraField);
+        // Second row for different controls like creating the event, refresh button or canceling
+        HBox evFormRow2 = new HBox(8, createEventBtn, refreshEventsBtn, cancelEventId, cancelEventBtn);
 
-        // Third row for different controls like creating the event, refresh button or canceling
-        HBox evFormRow3 = new HBox(8, createEventBtn, refreshEventsBtn, cancelEventId, cancelEventBtn);
+        // Creates vertical layout for the event rowws
+        VBox eventFormSection = new VBox(10, evFormRow1, evFormRow2);
+        eventFormSection.setPadding(new Insets(15)); // Adds padding
+        eventFormSection.setMaxWidth(1100); // Sets the maximum width of the form section
+        // Applies styling
+        eventFormSection.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-border-color: #D9D9D9;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;"
+        );
 
         // Builds the full event management screen layout
         // Stacks the specific items, like HBox and labels
@@ -261,10 +347,30 @@ public class HelloApplication extends Application {
         // Uses a larger font size, bold weight, and the university red color for consistency
         eventHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
 
-        // Main vertical layout container for the entire Event Management screen
-        VBox eventRoot = new VBox(10, eventHeader, eventOutput, evFormRow1, evFormRow2, evFormRow3, backFromEvent);
-        eventRoot.setPadding(new Insets(12)); // Adds padding around the event screen layout
-        eventRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
+        Label eventMessage = new Label(); // Creates a label to display error messages
+        eventMessage.setStyle("-fx-text-fill: red; -fx-font-size: 13px;"); // Adds styling
+
+        // Create the top header section (navigation bar with buttons and logo)
+        VBox eventHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
+
+        // Main content layout for Event Management screen (form inputs + output display)
+        VBox eventContent = new VBox(15, eventHeader, eventTable, eventMessage, eventFormSection, backFromEvent);
+        eventContent.setAlignment(Pos.TOP_CENTER);
+        eventContent.setPadding(new Insets(20, 50, 20, 50));
+
+        // Root layout combining header and content vertically
+        // Creates a scroll panel to allow scrolling for the eventContent layout
+        ScrollPane eventScroll = new ScrollPane(eventContent);
+        eventScroll.setFitToWidth(true);
+
+        // Shows horizontal and vertical scroller if needed (not needed if there is enough spots on the screen)
+        eventScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        eventScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        // Creates the main root layout
+        VBox eventRoot = new VBox(0, eventHeaderTop, eventScroll);
+
+        eventRoot.setStyle(pageBackgroundStyle); // Apply background styling to entire screen
 
         // Adds styling to the specific buttons
         createEventBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
@@ -272,13 +378,51 @@ public class HelloApplication extends Application {
         cancelEventBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
         backFromEvent.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
-        Scene eventScene = new Scene(eventRoot, 1200, 700); // Creates the scene for the Event Management screen
+        // Create the Event Management scene and assign it to index 1 in the scenes array
+        eventScene = new Scene(eventRoot, 1200, 700);
+        scenes[1] = eventScene;
 
 
         // User Screen
-        userOutput = new TextArea(); // Text area to display user related messages
-        userOutput.setEditable(false); // Prevents user from typing inside output area
-        userOutput.setPrefHeight(240); // Sets a fixed height for the display area
+        userTable = new TableView<>(); // Creates a table view to display user objects
+
+        // Column for User ID
+        TableColumn<User, String> userIdCol = new TableColumn<>("ID");
+        // Convert the ID (likely an int) to a String for display
+        userIdCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(String.valueOf(data.getValue().getID())));
+
+        // Column for User First Name
+        TableColumn<User, String> userNameCol = new TableColumn<>("Name");
+        // Get the user's name for each row
+        userNameCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getName()));
+
+        // Column for User Surname
+        TableColumn<User, String> userSurnameCol = new TableColumn<>("Surname");
+        // Get the user's surname for each row
+        userSurnameCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getSurname()));
+
+        // Column for User Email
+        TableColumn<User, String> userEmailCol = new TableColumn<>("Email");
+        // Get the user's email for display
+        userEmailCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEmail()));
+
+        // Column for User Birthdate
+        TableColumn<User, String> userBirthCol = new TableColumn<>("Birthdate");
+        // Display the birthdate (already formatted as a String)
+        userBirthCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getBirthdate()));
+
+        // Column for User Type
+        TableColumn<User, String> userTypeCol = new TableColumn<>("Type");
+        // Convert enum to String for display
+        userTypeCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getUserType().toString()));
+
+        // Add all columns to the table
+        userTable.getColumns().addAll(userIdCol, userNameCol, userSurnameCol, userEmailCol, userBirthCol, userTypeCol);
+
+        // Make columns automatically resize to fill available width
+        userTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        userTable.setPrefHeight(240); // Sets preferred height
+        userTable.setMaxWidth(1190); // Sets max width
 
         // User inputs
         TextField userName = new TextField(); // Text field for first name
@@ -323,10 +467,26 @@ public class HelloApplication extends Application {
         Button viewUserBtn = new Button("View User Details");
 
         // First horizontal row containing all user input fields
-        HBox userFormRow = new HBox(8, userName, userSurname, userEmail, userMonth, userDay, userYear, userIdField, userTypeLabel, userTypeCombo);
+        HBox userFormRow = new HBox(10, userName, userSurname, userEmail, userMonth, userDay, userYear, userIdField, userTypeLabel, userTypeCombo);
+        userFormRow.setAlignment(Pos.CENTER_LEFT);
+        userFormRow.setSpacing(10);
 
         // Second horizontal row containing action buttons and removal field
         HBox userFormRow2 = new HBox(8, addUserBtn, refreshUsersBtn, viewUserId, viewUserBtn, removeUserId, removeUserBtn);
+        userFormRow2.setAlignment(Pos.CENTER_LEFT);
+        userFormRow2.setSpacing(10);
+
+        // Create a vertical layout to group both form rows together
+        VBox userFormSection = new VBox(10, userFormRow, userFormRow2);
+        userFormSection.setPadding(new Insets(15));
+        userFormSection.setMaxWidth(1190); // Sets a max width for the section
+        // Adds styling
+        userFormSection.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-border-color: #D9D9D9;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;"
+        );
 
         // Vertical layout that builds the full User Management screen
         Label userHeader = new Label("User Management"); // Section header label displayed at the top of the User Management screen
@@ -335,9 +495,25 @@ public class HelloApplication extends Application {
         // Uses a larger font size, bold weight, and the university red color for consistency
         userHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
 
-        // Main vertical layout container for the entire User Management screen
-        VBox userRoot = new VBox(10, userHeader, userOutput, userFormRow, userFormRow2, backFromUser);
-        userRoot.setPadding(new Insets(12)); // Padding - 12 pixels of whitespace on all sides so it doesn't touch edges
+        // Create the top header section (navigation bar with buttons and logo)
+        VBox userHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
+
+        // Main content layout for User Management screen (user form inputs + output display)
+        VBox userContent = new VBox(15, userHeader, userTable, userFormSection, backFromUser);
+        userContent.setAlignment(Pos.TOP_CENTER);
+        userContent.setPadding(new Insets(12)); // Padding - 12 pixels of whitespace on all sides so it doesn't touch edges
+
+        // Create a ScrollPane to allow scrolling for the userContent layout
+        ScrollPane userScroll = new ScrollPane(userContent);
+        userScroll.setFitToWidth(true);
+
+        // Uses horizontal and vertical scrolling if needed
+        userScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        userScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        // Root layout combining header and content vertically
+        VBox userRoot = new VBox(0, userHeaderTop, userScroll);
+
         userRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
 
         // Adds styling for the specific buttons
@@ -347,11 +523,13 @@ public class HelloApplication extends Application {
         viewUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
         backFromUser.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
-        Scene userScene = new Scene(userRoot, 1200, 700); // Creates the scene used for the User Management screen
+        // Create the User Management scene and assign it to index 2 in the scenes array
+        userScene = new Scene(userRoot, 1200, 700);
+        scenes[2] = userScene;
 
 
         // Waitlist Viewer (read only)
-        TextArea waitlistOutput = new TextArea(); // Text area to display waitlist information
+        waitlistOutput = new TextArea(); // Text area to display waitlist information
         waitlistOutput.setEditable(false); // Prevents editing since this screen is only used for viewing
         waitlistOutput.setPrefHeight(420); // Sets the display height of the waitlist output
 
@@ -364,15 +542,23 @@ public class HelloApplication extends Application {
         // Uses a larger font size, bold weight, and the university red color for consistency
         waitHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
 
-        // Main vertical layout container for the entire User Management screen
-        VBox waitRoot = new VBox(10, waitHeader, waitlistOutput, backFromWaitlist);
-        waitRoot.setPadding(new Insets(12)); // Adds padding around the layout
+        // Create the top header section (navigation bar with buttons and logo)
+        VBox waitHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
+
+        // Main content layout for Waitlist screen (displays waitlisted bookings)
+        VBox waitContent = new VBox(10, waitHeader, waitlistOutput, backFromWaitlist);
+        waitContent.setPadding(new Insets(12)); // Adds padding around the layout
+
+        // Root layout combining header and content vertically
+        VBox waitRoot = new VBox(0, waitHeaderTop, waitContent);
         waitRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
 
         // Adds styling for the back button
         backFromWaitlist.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
-        Scene waitScene = new Scene(waitRoot, 1200, 700); // Creates the scene used for the waitlist viewer
+        // Create the Waitlist scene and assign it to index 3 in the scenes array
+        waitScene = new Scene(waitRoot, 1200, 700);
+        scenes[3] = waitScene;
 
 
         // Booking Screen
@@ -388,10 +574,6 @@ public class HelloApplication extends Application {
         bookingEventCombo = new ComboBox<>();
         bookingEventCombo.setPromptText("Select event (ID - title)");
 
-        // Text field for entering the unique booking ID
-        TextField bookingIdField = new TextField();
-        bookingIdField.setPromptText("Booking ID (unique)");
-
         // Buttons
         Button createBookingBtn = new Button("Create Booking");
         Button refreshBookingsBtn = new Button("Refresh Bookings");
@@ -401,7 +583,7 @@ public class HelloApplication extends Application {
         Button backFromBooking = new Button("Back");
 
         // First row contains the booking creation inputs
-        HBox bookingRow1 = new HBox(8, bookingUserCombo, bookingEventCombo, bookingIdField);
+        HBox bookingRow1 = new HBox(8, bookingUserCombo, bookingEventCombo);
 
         // Second row contains booking action buttons and cancellation input
         HBox bookingRow2 = new HBox(8, createBookingBtn, refreshBookingsBtn, cancelBookingId, cancelBookingBtn);
@@ -413,9 +595,15 @@ public class HelloApplication extends Application {
         // Uses a larger font size, bold weight, and the university red color for consistency
         bookingHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
 
-        // Main vertical layout container for the entire User Management screen
-        VBox bookingRoot = new VBox(10, bookingHeader, bookingOutput, bookingRow1, bookingRow2, backFromBooking);
-        bookingRoot.setPadding(new Insets(12)); // Adds padding around the booking layout
+        // Create the top header section (navigation bar with buttons and logo)
+        VBox bookingHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
+
+        // Main content layout for Booking Management screen (booking form inputs + output display)
+        VBox bookingContent = new VBox(10, bookingHeader, bookingOutput, bookingRow1, bookingRow2, backFromBooking);
+        bookingContent.setPadding(new Insets(12)); // Adds padding around the layout
+
+        // Root layout combining header and content vertically
+        VBox bookingRoot = new VBox(0, bookingHeaderTop, bookingContent);
         bookingRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
 
         // Adds styling for the specific buttons
@@ -424,33 +612,9 @@ public class HelloApplication extends Application {
         cancelBookingBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
         backFromBooking.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
-        Scene bookingScene = new Scene(bookingRoot, 1200, 700); // Creates the scene used for the Booking Management screen
-
-
-        // Navigation between the screens
-        // Opens the Event Management screen after refreshing its displayed data
-        eventBtn.setOnAction(e -> {
-            refreshEvents(); // Ensures list is updated
-            stage.setScene(eventScene); // Switches scene
-        });
-
-        // Opens the User Management screen after refreshing its displayed data
-        userBtn.setOnAction(e -> {
-            refreshUsers();
-            stage.setScene(userScene);
-        });
-
-        // Opens the Waitlist Viewer screen after refreshing its displayed data
-        waitlistBtn.setOnAction(e -> {
-            refreshWaitlist(waitlistOutput);
-            stage.setScene(waitScene);
-        });
-
-        // Opens the Booking Management screen after refreshing its displayed data
-        bookingBtn.setOnAction(e -> {
-            refreshBookings();
-            stage.setScene(bookingScene);
-        });
+        // Create the Booking Management scene and assign it to index 4 in the scenes array
+        bookingScene = new Scene(bookingRoot, 1200, 700);
+        scenes[4] = bookingScene;
 
         // Returns from each management screen back to main menu screen
         backFromEvent.setOnAction(e -> stage.setScene(mainScene));
@@ -512,7 +676,7 @@ public class HelloApplication extends Application {
                 refreshEvents();
             } catch (Exception ex) {
                 // Shows an error message if input is invalid or event creation fails
-                eventOutput.setText("CREATE ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
+                eventMessage.setText("Error: Check inputs (DateTime format: yyyy-MM-dd HH:mm) or check if all fields are filled");
             }
         });
 
@@ -525,7 +689,7 @@ public class HelloApplication extends Application {
 
             // Validates the ID was entered
             if (id.isEmpty()) {
-                eventOutput.setText("Enter Event ID to cancel.");
+                System.out.println("Enter Event ID to cancel.");
                 return;
             }
 
@@ -533,7 +697,7 @@ public class HelloApplication extends Application {
 
             // Shows an error message if event does not exist
             if (found == null) {
-                eventOutput.setText("Event not found: " + id);
+                System.out.println("Event not found: " + id);
                 return;
             }
 
@@ -543,26 +707,17 @@ public class HelloApplication extends Application {
                 // Let the waitlist manager handle cancellation related logic
                 waitlistManager.handleEventCancelled(found);
 
-                // Clears the waitlist and confirmed bookings
-                found.getWaitlist().clear();
-                found.getConfirmedBookings().clear();
-
-                refreshEvents(); // Refresh the event display
-
-                // Mark all confirmed bookings for this event as cancelled
-                List<Booking> toCancel = new ArrayList<>();
-                for (Booking b : new ArrayList<>(found.getConfirmedBookings())) {
-                    b.setStatus(BookingStatus.CANCELLED);
-                    toCancel.add(b);
+                for (Booking b : bookings.values()) {
+                    if (b.getEvent().equals(found)) {
+                        b.setStatus(BookingStatus.CANCELLED);
+                    }
                 }
-
-                found.getConfirmedBookings().clear(); // Clear confirmed bookings again
 
                 refreshEvents(); // Refresh the event display again
 
                 // Shows an error message if the cancellation fails
             } catch (Exception ex) {
-                eventOutput.setText("CANCEL ERROR: " + ex.getMessage());
+                System.out.println("CANCEL ERROR: " + ex.getMessage());
             }
         });
 
@@ -583,7 +738,7 @@ public class HelloApplication extends Application {
 
                 // Prevents users from being duplicated using the same id
                 if (findUserById(id) != null) {
-                    userOutput.setText("User ID already exists.");
+                    System.out.println("User ID already exists.");
                     return;
                 }
 
@@ -605,7 +760,7 @@ public class HelloApplication extends Application {
 
                 // Shows an error message if input is invalid or user creation fails
             } catch (Exception ex) {
-                userOutput.setText("ADD USER ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
+                System.out.println("ADD USER ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             }
         });
 
@@ -622,7 +777,7 @@ public class HelloApplication extends Application {
 
                 // Shows an error message if no matching user id exists
                 if (found == null) {
-                    userOutput.setText("User not found: " + id);
+                    System.out.println("User not found: " + id);
                     return;
                 }
 
@@ -635,7 +790,7 @@ public class HelloApplication extends Application {
 
                 // Shows an error message if removal fails
             } catch (Exception ex) {
-                userOutput.setText("REMOVE USER ERROR: " + ex.getMessage());
+                System.out.println("REMOVE USER ERROR: " + ex.getMessage());
             }
         });
 
@@ -648,7 +803,7 @@ public class HelloApplication extends Application {
 
                 // If no user is found program outputs an error message
                 if (found == null) {
-                    userOutput.setText("User not found: " + id);
+                    System.out.println("User not found: " + id);
                     return;
                 }
 
@@ -685,10 +840,10 @@ public class HelloApplication extends Application {
                     sb.append("No bookings found.");
                 }
 
-                userOutput.setText(sb.toString()); // Outputs the comlpleted text
+                System.out.println(sb.toString()); // Outputs the comlpleted text
 
             } catch (Exception ex) {
-                userOutput.setText("VIEW USER ERROR: " + ex.getMessage()); // Handles invalid input
+                System.out.println("VIEW USER ERROR: " + ex.getMessage()); // Handles invalid input
             }
         });
 
@@ -698,19 +853,13 @@ public class HelloApplication extends Application {
         createBookingBtn.setOnAction(e -> {
             try {
                 // Reads the booking id and selected entries from the gui
-                String bookingId = bookingIdField.getText().trim();
+                String bookingId = "B" + nextBookingId++;
                 String userEntry = bookingUserCombo.getValue();
                 String eventEntry = bookingEventCombo.getValue();
 
-                // Prevents duplicated bookings
-                if (bookings.containsKey(bookingId)) {
-                    bookingOutput.setText("Booking ID already exists.");
-                    return;
-                }
-
-                // Makes sure all required inputs were provided
-                if (bookingId.isEmpty() || userEntry == null || eventEntry == null) {
-                    bookingOutput.setText("Please supply booking ID, user, and event.");
+                // Checks dropdown selections if they are filled
+                if (userEntry == null || eventEntry == null) {
+                    bookingOutput.setText("Please select both a user and an event.");
                     return;
                 }
 
@@ -723,8 +872,36 @@ public class HelloApplication extends Application {
                 Event ev = findEventById(eventId);
 
                 // Stops if either user or event does not exist
-                if (u == null || ev == null) {
-                    bookingOutput.setText("User or event not found.");
+                if (u == null) {
+                    bookingOutput.setText("User not found.");
+                    return;
+                }
+                if (ev == null) {
+                    bookingOutput.setText("Event not found.");
+                    return;
+                }
+
+                int activeBookings = 0;
+
+                // Loops through to see if the booking belongs to a specific user and the booking was not canceled
+                for (Booking b : bookings.values()) {
+                    if (b.getUser().equals(u) && b.getStatus() != BookingStatus.CANCELLED) {
+                        activeBookings++;
+                    }
+                }
+
+                // Set limits
+                int limit;
+                switch (u.getUserType()) {
+                    case STUDENT -> limit = 3;
+                    case STAFF -> limit = 5;
+                    case GUEST -> limit = 1;
+                    default -> limit = 1;
+                }
+
+                // Enforces limit
+                if (activeBookings >= limit) {
+                    bookingOutput.setText("Booking limit reached for " + u.getUserType());
                     return;
                 }
 
@@ -852,8 +1029,7 @@ public class HelloApplication extends Application {
             refreshEvents();
         });
 
-        // Initial sample data
-        seedSampleData();
+        loadInitialData();
 
         // Configure and show the main application window
         stage.setTitle("OPP Final Project");
@@ -866,74 +1042,23 @@ public class HelloApplication extends Application {
 
     // Outputs a refreshed version of the events screen
     private void refreshEvents() {
-        // StringBuilder is used to build the display text
-        StringBuilder sb = new StringBuilder();
+        // Sort events by date and time (earliest to latest)
+        events.sort(Comparator.comparing(Event::getDateTime));
 
-        events.sort(Comparator.comparing(Event::getDateTime)); // Sorts by Date
+        // Convert the events list into an observable list and set it to the table
+        // This allows the TableView to properly track and display updates
+        eventTable.setItems(FXCollections.observableArrayList(events));
+        eventTable.refresh(); // Refreshes the table to show all event changes
 
-        // Loops through every event in the event list
-        for (Event ev : events) {
-            sb.append(ev.getEventId())
-                    .append(" | ").append(ev.getTitle())
-                    .append(" | ").append(ev.getDateTime().format(DISPLAY_FMT))
-                    .append(" | ").append(ev.getLocation())
-                    .append(" | ").append(ev.getStatus())
-                    .append(" | Confirmed: ").append(ev.getConfirmedBookings().size())
-                    .append(" | Waitlist: ").append(ev.getWaitlist().size())
-                    .append("\n");
-
-            // Loops through all confirmed bookings for this event
-            // and displays the name of each user successfully booked for that event
-            for (Booking b : ev.getConfirmedBookings()) {
-                sb.append("   - ").append(b.getUser().getName())
-                        .append(" ").append(b.getUser().getSurname())
-                        .append("\n");
-            }
-
-            // Only displays the waitlist section if the event has users in the waitlist
-            if (!ev.getWaitlist().isEmpty()) {
-                sb.append("   Waitlist:\n");
-
-                // Loops through all confirmed bookings currently on the waitlist
-                // and displays the name of each user on the waitlist for that event
-                for (Booking b : ev.getWaitlist()) {
-                    sb.append("   - ").append(b.getUser().getName())
-                            .append(" ").append(b.getUser().getSurname())
-                            .append("\n");
-                }
-            }
-        }
-
-        eventOutput.setText(sb.toString()); // Displays the text in the event output area
-
-        // Update the booking dropdowns so they match the latest data
-        refreshBookingCombos();
+        refreshBookingCombos(); // Update booking-related dropdowns (since events may have changed)
     }
 
 
     // Refreshes the user display area with the latest user information
-    // Refreshes the user display area with the latest user information
     private void refreshUsers() {
-        StringBuilder sb = new StringBuilder();
-
-        // Header row
-        sb.append(String.format("%-10s %-15s %-15s %-38s %-15s %-10s%n",
-                "ID", "Name", "Surname", "Email", "Birthdate", "Type"));
-
-        // User rows
-        for (User u : users) {
-            sb.append(String.format("%-10d %-15s %-15s %-25s %-12s %-10s%n",
-                    u.getID(),
-                    u.getName(),
-                    u.getSurname(),
-                    u.getEmail(),
-                    u.getBirthdate(),
-                    u.getUserType()));
-        }
-
-        userOutput.setText(sb.toString());
-
-        refreshBookingCombos();
+        // Set updated user list into the table (converted to observable list)
+        userTable.setItems(FXCollections.observableArrayList(users));
+        refreshBookingCombos(); // Update booking-related dropdowns (users may affect booking selections)
     }
 
 
@@ -1027,23 +1152,293 @@ public class HelloApplication extends Application {
     }
 
 
-    // Sample data provided in the gui when the program starts
-    private void seedSampleData() {
-        // Add sample user
-        try {
-            users.add(new User("Aiden", "Gabriel", 8, 30, 2007, 138849, "agabriel@uoguelph.ca", UserType.STUDENT));
-        } catch (Exception ignored) {}
+    // Creates a reusable header component (top bar + branding + navigation buttons)
+    private VBox createHeader(String whiteTopBarStyle, String blackHeaderStyle, String navButtonStyle,
+                              Button eventBtn, Button userBtn, Button waitlistBtn, Button bookingBtn,
+                              Image logoImage) {
 
-        // Add sample event (safe defaults)
+        // Top white bar (visual styling strip above header)
+        Region whiteTopBar = new Region();
+        whiteTopBar.setPrefHeight(26);
+        whiteTopBar.setStyle(whiteTopBarStyle);
+
+        // Logo image setup
+        ImageView logoView = new ImageView(logoImage);
+        logoView.setFitHeight(85); // Scale logo height
+        logoView.setPreserveRatio(true); // Maintain aspect ratio
+        logoView.setTranslateX(-75); // Shift logo left for alignment
+
+        // University title text
+        Label title = new Label("UNIVERSITY OF\nGUELPH");
+        title.setStyle("-fx-text-fill: white; -fx-font-size: 30px; -fx-font-weight: bold;");
+        title.setTranslateX(-75); // Align text with logo
+
+        // Decorative accent shapes (branding design)
+        Polygon redAccent = new Polygon(-15,-10, 25,-10, 80,105, -15,105);
+        redAccent.setFill(Color.web("#C20430")); // Red accent
+
+        Polygon goldAccent = new Polygon(-15,-10, 70,-10, -15,105);
+        goldAccent.setFill(Color.web("#FFC72C")); // Gold accent
+
+        // Container for accent shapes
+        Pane accentPane = new Pane();
+        accentPane.setPrefSize(140, 95);
+        accentPane.getChildren().addAll(goldAccent, redAccent);
+
+        // Combine logo and title horizontally
+        HBox logoAndTitleBox = new HBox(12, logoView, title);
+        logoAndTitleBox.setAlignment(Pos.CENTER_LEFT);
+
+        // Left side of header (branding + accents)
+        HBox leftBranding = new HBox(18, accentPane, logoAndTitleBox);
+        leftBranding.setPadding(new Insets(10, 20, 10, 12));
+        leftBranding.setStyle(blackHeaderStyle);
+
+        // Navigation buttons (new buttons created to avoid reusing original ones)
+        Button eBtn = new Button("Events");
+        Button uBtn = new Button("Users");
+        Button wBtn = new Button("Waitlist");
+        Button bBtn = new Button("Bookings");
+
+        // Apply consistent navigation button styling
+        eBtn.setStyle(navButtonStyle);
+        uBtn.setStyle(navButtonStyle);
+        wBtn.setStyle(navButtonStyle);
+        bBtn.setStyle(navButtonStyle);
+
+        // Copy functionality from original buttons to maintain navigation behavior
+        eBtn.setOnAction(eventBtn.getOnAction());
+        uBtn.setOnAction(userBtn.getOnAction());
+        wBtn.setOnAction(waitlistBtn.getOnAction());
+        bBtn.setOnAction(bookingBtn.getOnAction());
+
+        // Navigation bar layout (centered buttons with spacing)
+        HBox navBar = new HBox(45, eBtn, uBtn, wBtn, bBtn);
+        navBar.setPadding(new Insets(0, 0, 0, 120));
+        navBar.setStyle(blackHeaderStyle);
+        navBar.setAlignment(Pos.CENTER);
+        HBox.setHgrow(navBar, Priority.ALWAYS); // Allow nav bar to expand horizontally
+
+        // Combine branding (left) and navigation (right)
+        HBox headerBar = new HBox(leftBranding, navBar);
+        headerBar.setStyle(blackHeaderStyle);
+
+        // Return full header (white strip + main header bar)
+        return new VBox(whiteTopBar, headerBar);
+    }
+
+
+    // Format used in CSV (matches project file format)
+    private static final DateTimeFormatter CSV_DATE_TIME_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
+    // Loads all data at startup (users, events, bookings)
+    private void loadInitialData() {
+
+        // Clear existing data before loading fresh data
+        users.clear();
+        events.clear();
+        bookings.clear();
+
         try {
-            LocalDateTime dt = LocalDateTime.now().plusDays(1).withHour(18).withMinute(0);
-            Event sample = new Concert("Sample Concert", dt, "Auditorium", 2, 0);
-            // ensure event has an ID — subclasses in your project may set it in their constructor;
-            // if constructor signature in your version is different adjust accordingly.
-            events.add(sample);
-        } catch (Exception ignored) {}
-        refreshEvents();
-        refreshUsers();
-        refreshBookings();
+            // Load each file
+            loadUsersFromCsv("/users.csv");
+            loadEventsFromCsv("/events.csv");
+            loadBookingsFromCsv("/bookings.csv");
+
+            // Refresh GUI so data shows up
+            refreshUsers();
+            refreshEvents();
+            refreshBookings();
+
+        } catch (Exception e) {
+            System.out.println("LOAD ERROR: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
+    // Opens a file from the resources folder
+    private BufferedReader openResourceFile(String resourcePath) {
+
+        InputStream in = getClass().getResourceAsStream(resourcePath);
+
+        if (in == null) {
+            throw new IllegalArgumentException("File not found: " + resourcePath);
+        }
+
+        return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+    }
+
+
+    // ===================== USERS =====================
+    private void loadUsersFromCsv(String path) throws IOException {
+
+        try (BufferedReader br = openResourceFile(path)) {
+
+            br.readLine(); // skip header row
+
+            String line;
+            while ((line = br.readLine()) != null) {
+
+                if (line.trim().isEmpty()) continue;
+
+                String[] p = line.split(",", -1);
+
+                String idRaw = p[0].trim();
+                String fullName = p[1].trim();
+                String email = p[2].trim();
+                String typeRaw = p[3].trim();
+
+                // Extract number from ID (handles U001 → 1)
+                int id = Integer.parseInt(idRaw.replaceAll("\\D+", ""));
+
+                // Split full name into first + last
+                String[] nameParts = fullName.split("\\s+", 2);
+                String first = nameParts.length > 0 ? nameParts[0] : "Unknown";
+                String last = nameParts.length > 1 ? nameParts[1] : "Unknown";
+
+                // Convert string to enum
+                UserType type = switch (typeRaw.toUpperCase()) {
+                    case "STUDENT" -> UserType.STUDENT;
+                    case "STAFF" -> UserType.STAFF;
+                    case "GUEST" -> UserType.GUEST;
+                    default -> throw new IllegalArgumentException("Invalid userType");
+                };
+
+                // Create user (dummy birthdate since class requires it)
+                User u = new User(first, last, 1, 1, 2000, id, email, type);
+
+                users.add(u);
+            }
+        }
+    }
+
+
+    // ===================== EVENTS =====================
+    private void loadEventsFromCsv(String path) throws IOException {
+
+        try (BufferedReader br = openResourceFile(path)) {
+
+            br.readLine(); // skip header row
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+
+                String[] p = line.split(",", -1);
+
+                String eventId = p[0].trim();
+                String title = p[1].trim();
+                LocalDateTime dt = LocalDateTime.parse(p[2].trim(), CSV_DATE_TIME_FMT);
+                String location = p[3].trim();
+                int capacity = Integer.parseInt(p[4].trim());
+                String status = p[5].trim();
+                String type = p[6].trim();
+                String topic = p[7].trim();
+                String speaker = p[8].trim();
+                String ageRaw = p[9].trim();
+
+                Event event;
+
+                // Create correct event type based on CSV
+                switch (type.toUpperCase()) {
+                    case "WORKSHOP" ->
+                            event = new Workshop(eventId, title, dt, location, capacity, topic);
+                    case "SEMINAR" ->
+                            event = new Seminar(eventId, title, dt, location, capacity, speaker);
+                    case "CONCERT" -> {
+                        int age = ageRaw.isBlank() ? 0 : Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
+                        event = new Concert(eventId, title, dt, location, capacity, age);
+                    }
+                    default -> throw new IllegalArgumentException("Invalid eventType");
+                }
+
+                // If event was cancelled in file, restore it
+                if (status.equalsIgnoreCase("Cancelled")) {
+                    event.cancelEvent();
+                }
+
+                events.add(event);
+            }
+        }
+    }
+
+
+    // ===================== BOOKINGS =====================
+    private void loadBookingsFromCsv(String path) throws IOException {
+
+        // Helper class to temporarily store booking rows
+        class Row {
+            String id;
+            int userId;
+            String eventId;
+            LocalDateTime time;
+            BookingStatus status;
+
+            Row(String id, int userId, String eventId, LocalDateTime time, BookingStatus status) {
+                this.id = id;
+                this.userId = userId;
+                this.eventId = eventId;
+                this.time = time;
+                this.status = status;
+            }
+        }
+
+        List<Row> rows = new ArrayList<>();
+
+        try (BufferedReader br = openResourceFile(path)) {
+
+            br.readLine(); // skip header
+
+            String line;
+            while ((line = br.readLine()) != null) {
+
+                if (line.trim().isEmpty()) continue;
+
+                String[] p = line.split(",", -1);
+
+                String id = p[0].trim();
+                int userId = Integer.parseInt(p[1].trim().replaceAll("\\D+", ""));
+                String eventId = p[2].trim();
+                LocalDateTime time = LocalDateTime.parse(p[3].trim(), CSV_DATE_TIME_FMT);
+
+                // Convert string to booking status
+                BookingStatus status = switch (p[4].trim().toUpperCase()) {
+                    case "CONFIRMED" -> BookingStatus.CONFIRMED;
+                    case "WAITLISTED" -> BookingStatus.WAITLISTED;
+                    case "CANCELLED" -> BookingStatus.CANCELLED;
+                    default -> throw new IllegalArgumentException("Invalid bookingStatus");
+                };
+
+                rows.add(new Row(id, userId, eventId, time, status));
+            }
+        }
+
+        // Sort bookings by time (VERY IMPORTANT for waitlist order)
+        rows.sort(Comparator.comparing(r -> r.time));
+
+        // Create booking objects
+        for (Row r : rows) {
+
+            User user = findUserById(r.userId);
+            Event event = findEventById(r.eventId);
+
+            if (user == null || event == null) continue;
+
+            // Create booking using correct timestamp
+            Booking b = new Booking(r.id, user, event, r.time, r.status);
+            bookings.put(r.id, b);
+
+            // Rebuild confirmed + waitlist state
+            if (r.status == BookingStatus.CONFIRMED) {
+                event.addConfirmedBooking(b);
+                waitlistManager.addToConfirmed(event, user);
+
+            } else if (r.status == BookingStatus.WAITLISTED) {
+                event.addToWaitlist(b);
+                waitlistManager.addToWaitlist(event, user);
+            }
+        }
     }
 }
