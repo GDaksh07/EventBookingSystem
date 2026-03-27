@@ -40,12 +40,6 @@ import javafx.scene.image.ImageView;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Comparator;
 
 public class HelloApplication extends Application {
 
@@ -353,15 +347,29 @@ public class HelloApplication extends Application {
         // Uses a larger font size, bold weight, and the university red color for consistency
         eventHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
 
+        Label eventMessage = new Label(); // Creates a label to display error messages
+        eventMessage.setStyle("-fx-text-fill: red; -fx-font-size: 13px;"); // Adds styling
+
         // Create the top header section (navigation bar with buttons and logo)
         VBox eventHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
 
         // Main content layout for Event Management screen (form inputs + output display)
-        VBox eventContent = new VBox(10, eventHeader, eventOutput, evFormRow1, evFormRow2, evFormRow3, backFromEvent);
-        eventContent.setPadding(new Insets(12));
+        VBox eventContent = new VBox(15, eventHeader, eventTable, eventMessage, eventFormSection, backFromEvent);
+        eventContent.setAlignment(Pos.TOP_CENTER);
+        eventContent.setPadding(new Insets(20, 50, 20, 50));
 
         // Root layout combining header and content vertically
-        VBox eventRoot = new VBox(0, eventHeaderTop, eventContent);
+        // Creates a scroll panel to allow scrolling for the eventContent layout
+        ScrollPane eventScroll = new ScrollPane(eventContent);
+        eventScroll.setFitToWidth(true);
+
+        // Shows horizontal and vertical scroller if needed (not needed if there is enough spots on the screen)
+        eventScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        eventScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        // Creates the main root layout
+        VBox eventRoot = new VBox(0, eventHeaderTop, eventScroll);
+
         eventRoot.setStyle(pageBackgroundStyle); // Apply background styling to entire screen
 
         // Adds styling to the specific buttons
@@ -491,11 +499,21 @@ public class HelloApplication extends Application {
         VBox userHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
 
         // Main content layout for User Management screen (user form inputs + output display)
-        VBox userContent = new VBox(10, userHeader, userOutput, userFormRow, userFormRow2, backFromUser);
+        VBox userContent = new VBox(15, userHeader, userTable, userFormSection, backFromUser);
+        userContent.setAlignment(Pos.TOP_CENTER);
         userContent.setPadding(new Insets(12)); // Padding - 12 pixels of whitespace on all sides so it doesn't touch edges
 
+        // Create a ScrollPane to allow scrolling for the userContent layout
+        ScrollPane userScroll = new ScrollPane(userContent);
+        userScroll.setFitToWidth(true);
+
+        // Uses horizontal and vertical scrolling if needed
+        userScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        userScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
         // Root layout combining header and content vertically
-        VBox userRoot = new VBox(0, userHeaderTop, userContent);
+        VBox userRoot = new VBox(0, userHeaderTop, userScroll);
+
         userRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
 
         // Adds styling for the specific buttons
@@ -1011,7 +1029,6 @@ public class HelloApplication extends Application {
             refreshEvents();
         });
 
-        // Initial sample data
         loadInitialData();
 
         // Configure and show the main application window
@@ -1067,224 +1084,6 @@ public class HelloApplication extends Application {
         refreshBookingCombos();
     }
 
-    // Format used in CSV (matches project file format)
-    private static final DateTimeFormatter CSV_DATE_TIME_FMT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
-
-    // Loads all data at startup (users, events, bookings)
-    private void loadInitialData() {
-
-        // Clear existing data before loading fresh data
-        users.clear();
-        events.clear();
-        bookings.clear();
-
-        try {
-            // Load each file
-            loadUsersFromCsv("/users.csv");
-            loadEventsFromCsv("/events.csv");
-            loadBookingsFromCsv("/bookings.csv");
-
-            // Refresh GUI so data shows up
-            refreshUsers();
-            refreshEvents();
-            refreshBookings();
-
-        } catch (Exception e) {
-            System.out.println("LOAD ERROR: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // Opens a file from the resources folder
-    private BufferedReader openResourceFile(String resourcePath) {
-
-        InputStream in = getClass().getResourceAsStream(resourcePath);
-
-        if (in == null) {
-            throw new IllegalArgumentException("File not found: " + resourcePath);
-        }
-
-        return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-    }
-
-
-    // ===================== USERS =====================
-    private void loadUsersFromCsv(String path) throws IOException {
-
-        try (BufferedReader br = openResourceFile(path)) {
-
-            br.readLine(); // skip header row
-
-            String line;
-            while ((line = br.readLine()) != null) {
-
-                if (line.trim().isEmpty()) continue;
-
-                String[] p = line.split(",", -1);
-
-                String idRaw = p[0].trim();
-                String fullName = p[1].trim();
-                String email = p[2].trim();
-                String typeRaw = p[3].trim();
-
-                // Extract number from ID (handles U001 → 1)
-                int id = Integer.parseInt(idRaw.replaceAll("\\D+", ""));
-
-                // Split full name into first + last
-                String[] nameParts = fullName.split("\\s+", 2);
-                String first = nameParts.length > 0 ? nameParts[0] : "Unknown";
-                String last = nameParts.length > 1 ? nameParts[1] : "Unknown";
-
-                // Convert string to enum
-                UserType type = switch (typeRaw.toUpperCase()) {
-                    case "STUDENT" -> UserType.STUDENT;
-                    case "STAFF" -> UserType.STAFF;
-                    case "GUEST" -> UserType.GUEST;
-                    default -> throw new IllegalArgumentException("Invalid userType");
-                };
-
-                // Create user (dummy birthdate since class requires it)
-                User u = new User(first, last, 1, 1, 2000, id, email, type);
-
-                users.add(u);
-            }
-        }
-    }
-
-
-    // ===================== EVENTS =====================
-    private void loadEventsFromCsv(String path) throws IOException {
-
-        try (BufferedReader br = openResourceFile(path)) {
-
-            br.readLine(); // skip header row
-
-            String line;
-            while ((line = br.readLine()) != null) {
-
-                if (line.trim().isEmpty()) continue;
-
-                String[] p = line.split(",", -1);
-
-                String eventId = p[0].trim();
-                String title = p[1].trim();
-                LocalDateTime dt = LocalDateTime.parse(p[2].trim(), CSV_DATE_TIME_FMT);
-                String location = p[3].trim();
-                int capacity = Integer.parseInt(p[4].trim());
-                String status = p[5].trim();
-                String type = p[6].trim();
-
-                String topic = p[7].trim();
-                String speaker = p[8].trim();
-                String ageRaw = p[9].trim();
-
-                Event event;
-
-                // Create correct event type based on CSV
-                switch (type.toUpperCase()) {
-
-                    case "WORKSHOP" ->
-                            event = new Workshop(eventId, title, dt, location, capacity, topic);
-
-                    case "SEMINAR" ->
-                            event = new Seminar(eventId, title, dt, location, capacity, speaker);
-
-                    case "CONCERT" -> {
-                        int age = ageRaw.isBlank() ? 0 : Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
-                        event = new Concert(eventId, title, dt, location, capacity, age);
-                    }
-
-                    default -> throw new IllegalArgumentException("Invalid eventType");
-                }
-
-                // If event was cancelled in file, restore it
-                if (status.equalsIgnoreCase("Cancelled")) {
-                    event.cancelEvent();
-                }
-
-                events.add(event);
-            }
-        }
-    }
-
-
-    // ===================== BOOKINGS =====================
-    private void loadBookingsFromCsv(String path) throws IOException {
-
-        // Helper class to temporarily store booking rows
-        class Row {
-            String id;
-            int userId;
-            String eventId;
-            LocalDateTime time;
-            BookingStatus status;
-
-            Row(String id, int userId, String eventId, LocalDateTime time, BookingStatus status) {
-                this.id = id;
-                this.userId = userId;
-                this.eventId = eventId;
-                this.time = time;
-                this.status = status;
-            }
-        }
-
-        List<Row> rows = new ArrayList<>();
-
-        try (BufferedReader br = openResourceFile(path)) {
-
-            br.readLine(); // skip header
-
-            String line;
-            while ((line = br.readLine()) != null) {
-
-                if (line.trim().isEmpty()) continue;
-
-                String[] p = line.split(",", -1);
-
-                String id = p[0].trim();
-                int userId = Integer.parseInt(p[1].trim().replaceAll("\\D+", ""));
-                String eventId = p[2].trim();
-                LocalDateTime time = LocalDateTime.parse(p[3].trim(), CSV_DATE_TIME_FMT);
-
-                // Convert string to booking status
-                BookingStatus status = switch (p[4].trim().toUpperCase()) {
-                    case "CONFIRMED" -> BookingStatus.CONFIRMED;
-                    case "WAITLISTED" -> BookingStatus.WAITLISTED;
-                    case "CANCELLED" -> BookingStatus.CANCELLED;
-                    default -> throw new IllegalArgumentException("Invalid bookingStatus");
-                };
-
-                rows.add(new Row(id, userId, eventId, time, status));
-            }
-        }
-
-        // Sort bookings by time (VERY IMPORTANT for waitlist order)
-        rows.sort(Comparator.comparing(r -> r.time));
-
-        // Create booking objects
-        for (Row r : rows) {
-
-            User user = findUserById(r.userId);
-            Event event = findEventById(r.eventId);
-
-            if (user == null || event == null) continue;
-
-            // Create booking using correct timestamp
-            Booking b = new Booking(r.id, user, event, r.time, r.status);
-            bookings.put(r.id, b);
-
-            // Rebuild confirmed + waitlist state
-            if (r.status == BookingStatus.CONFIRMED) {
-                event.addConfirmedBooking(b);
-                waitlistManager.addToConfirmed(event, user);
-
-            } else if (r.status == BookingStatus.WAITLISTED) {
-                event.addToWaitlist(b);
-                waitlistManager.addToWaitlist(event, user);
-            }
-        }
-    }
 
     // Refreshes the waitlist viewer with confirmed users and waitlisted users for each event
     private void refreshWaitlist(TextArea waitlistOutput) {
@@ -1642,80 +1441,4 @@ public class HelloApplication extends Application {
             }
         }
     }
-
-    // Creates a reusable header component (top bar + branding + navigation buttons)
-    private VBox createHeader(String whiteTopBarStyle, String blackHeaderStyle, String navButtonStyle,
-                              Button eventBtn, Button userBtn, Button waitlistBtn, Button bookingBtn,
-                              Image logoImage) {
-
-        // Top white bar (visual styling strip above header)
-        Region whiteTopBar = new Region();
-        whiteTopBar.setPrefHeight(26);
-        whiteTopBar.setStyle(whiteTopBarStyle);
-
-        // Logo image setup
-        ImageView logoView = new ImageView(logoImage);
-        logoView.setFitHeight(85); // Scale logo height
-        logoView.setPreserveRatio(true); // Maintain aspect ratio
-        logoView.setTranslateX(-75); // Shift logo left for alignment
-
-        // University title text
-        Label title = new Label("UNIVERSITY OF\nGUELPH");
-        title.setStyle("-fx-text-fill: white; -fx-font-size: 30px; -fx-font-weight: bold;");
-        title.setTranslateX(-75); // Align text with logo
-
-        // Decorative accent shapes (branding design)
-        Polygon redAccent = new Polygon(-15,-10, 25,-10, 80,105, -15,105);
-        redAccent.setFill(Color.web("#C20430")); // Red accent
-
-        Polygon goldAccent = new Polygon(-15,-10, 70,-10, -15,105);
-        goldAccent.setFill(Color.web("#FFC72C")); // Gold accent
-
-        // Container for accent shapes
-        Pane accentPane = new Pane();
-        accentPane.setPrefSize(140, 95);
-        accentPane.getChildren().addAll(goldAccent, redAccent);
-
-        // Combine logo and title horizontally
-        HBox logoAndTitleBox = new HBox(12, logoView, title);
-        logoAndTitleBox.setAlignment(Pos.CENTER_LEFT);
-
-        // Left side of header (branding + accents)
-        HBox leftBranding = new HBox(18, accentPane, logoAndTitleBox);
-        leftBranding.setPadding(new Insets(10, 20, 10, 12));
-        leftBranding.setStyle(blackHeaderStyle);
-
-        // Navigation buttons (new buttons created to avoid reusing original ones)
-        Button eBtn = new Button("Events");
-        Button uBtn = new Button("Users");
-        Button wBtn = new Button("Waitlist");
-        Button bBtn = new Button("Bookings");
-
-        // Apply consistent navigation button styling
-        eBtn.setStyle(navButtonStyle);
-        uBtn.setStyle(navButtonStyle);
-        wBtn.setStyle(navButtonStyle);
-        bBtn.setStyle(navButtonStyle);
-
-        // Copy functionality from original buttons to maintain navigation behavior
-        eBtn.setOnAction(eventBtn.getOnAction());
-        uBtn.setOnAction(userBtn.getOnAction());
-        wBtn.setOnAction(waitlistBtn.getOnAction());
-        bBtn.setOnAction(bookingBtn.getOnAction());
-
-        // Navigation bar layout (centered buttons with spacing)
-        HBox navBar = new HBox(45, eBtn, uBtn, wBtn, bBtn);
-        navBar.setPadding(new Insets(0, 0, 0, 120));
-        navBar.setStyle(blackHeaderStyle);
-        navBar.setAlignment(Pos.CENTER);
-        HBox.setHgrow(navBar, Priority.ALWAYS); // Allow nav bar to expand horizontally
-
-        // Combine branding (left) and navigation (right)
-        HBox headerBar = new HBox(leftBranding, navBar);
-        headerBar.setStyle(blackHeaderStyle);
-
-        // Return full header (white strip + main header bar)
-        return new VBox(whiteTopBar, headerBar);
-    }
 }
-
