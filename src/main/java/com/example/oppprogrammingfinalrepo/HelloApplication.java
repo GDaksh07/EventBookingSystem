@@ -1332,7 +1332,14 @@ public class HelloApplication extends Application {
                 String title = p[1].trim();
                 LocalDateTime dt = LocalDateTime.parse(p[2].trim(), CSV_DATE_TIME_FMT);
                 String location = p[3].trim();
-                int capacity = Integer.parseInt(p[4].trim());
+
+                int capacity;
+                try {
+                    capacity = Integer.parseInt(p[4].trim());
+                } catch (Exception e) {
+                    capacity = 0; // fallback
+                }
+
                 String status = p[5].trim();
                 String type = p[6].trim();
                 String topic = p[7].trim();
