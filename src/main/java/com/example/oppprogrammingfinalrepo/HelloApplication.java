@@ -67,7 +67,7 @@ public class HelloApplication extends Application {
     // Textboxes or Tableviews
     private TableView<Event> eventTable;
     private TableView<User> userTable;
-    private TextArea bookingOutput;
+    private TableView<Booking> bookingTable;
     private TextArea waitlistOutput;
 
     // Dropdown menus in the GUI
@@ -275,18 +275,46 @@ public class HelloApplication extends Application {
         // Convert the status enum to a string for display
         eventStatusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getStatus().toString()));
 
+        // Create a column for Event type (Concert, Seminar, Workshop)
+        TableColumn<Event, String> eventTypeCol = new TableColumn<>("Type");
+        eventTypeCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEventType().toString()));
+
+        // Create a column for the Event Extras (Age restriction, Speaker, Topic)
+        TableColumn<Event, String> eventExtraCol = new TableColumn<>("Extra");
+        // Logic for retrieving the age restriction, speaker or topic
+        eventExtraCol.setCellValueFactory(data -> {
+            Event e = data.getValue(); // Get the Event object for the current row
+
+            String value = ""; // Initialize a string to store what will be displayed in the column
+
+            // Checks which event type it is to determine the label to give it
+            // If age restriction, it gives a number
+            // if speaker or workshop it gives a string
+            if (e instanceof Concert c) {
+                value = "Age: " + c.getAgeRestriction();
+            } else if (e instanceof Seminar s) {
+                value = "Speaker: " + s.getSpeakerName();
+            } else if (e instanceof Workshop w) {
+                value = "Topic: " + w.getTopic();
+            }
+
+            // Return the final value wrapped in a JavaFX property so it can be displayed in the table
+            return new javafx.beans.property.SimpleStringProperty(value);
+        });
+
         // Add all columns to the table
-        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventStatusCol);
+        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventStatusCol, eventTypeCol, eventExtraCol);
 
         // Make columns automatically resize to fill available width
         eventTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         eventTable.setPrefHeight(240); // Sets preferred height of the table
-        eventTable.setMaxWidth(1100); // Limits max width of the table
+        eventTable.setMaxWidth(1190); // Limits max width of the table
 
         eventTable.setEditable(false); // prevents the user from editing the text
         eventTable.setPrefHeight(220); // sets a fixed height for the output display area
 
         // Inputs
+        // Creation Inputs
         // Text fields for where the user enters certain info
         TextField evTitle = new TextField(); // Text field for the event title
         evTitle.setPromptText("Title");
@@ -301,6 +329,11 @@ public class HelloApplication extends Application {
         TextField evCapacity = new TextField(); // Text field for the capacity
         evCapacity.setPromptText("Capacity (integer)");
 
+        // Extra field used for subclass constructors
+        // For example, Concert requiring an age restriction
+        TextField extraField = new TextField();
+        extraField.setPromptText("Extra (age/topic/materials)");
+
         // Event selection
         // Dropdown menu for selecting each subclass type
         ComboBox<EventType> evType = new ComboBox<>();
@@ -308,30 +341,62 @@ public class HelloApplication extends Application {
         evType.setItems(FXCollections.observableArrayList(EventType.CONCERT, EventType.SEMINAR, EventType.WORKSHOP));
         evType.setValue(EventType.CONCERT); // Sets the dropdown first to CONCERT
 
-        // Extra fields used for subclass constructors
-        // For example, Concert requiring an age restriction
-        TextField extraField = new TextField();
-        extraField.setPromptText("Extra (age/topic/materials)");
+        // Search Inputs
+        TextField searchField = new TextField(); // Text field for the title name
+        searchField.setPromptText("Search by title");
+
+        ComboBox<EventType> filterType = new ComboBox<>(); // Dropdown for searching for a event type in general
+        filterType.getItems().addAll(EventType.CONCERT, EventType.SEMINAR, EventType.WORKSHOP); // Adds the types
+        filterType.setPromptText("Filter by type");
+
+        // Adds buttons for the search fields
+        Button searchBtn = new Button("Search / Filter");
+        Button clearSearchBtn = new Button("Clear");
+
+        // Canceling an Event
+        TextField cancelEventId = new TextField(); // Field where the user enters an ID to the event they want to cancel
+        cancelEventId.setPromptText("Event ID to cancel");
+
+        // Updating an event
+        TextField updateTitle = new TextField(); // Text field for the new title name
+        updateTitle.setPromptText("New title");
+
+        TextField updateDate = new TextField(); // Text field for the new date
+        updateDate.setPromptText("New DateTime (yyyy-MM-dd HH:mm)");
+
+        TextField updateLocation = new TextField(); // Text field for the new location
+        updateLocation.setPromptText("New location");
+
+        TextField updateCapacity = new TextField(); // Text field for the new capacity
+        updateCapacity.setPromptText("New capacity");
+
+        TextField updateExtra = new TextField(); // Text field for the new extra field
+        updateExtra.setPromptText("New extra (age/topic/speaker)");
 
         // Buttons
         Button createEventBtn = new Button("Create Event");
         Button refreshEventsBtn = new Button("Refresh List");
-        TextField cancelEventId = new TextField(); // Field where the user enters an ID to the event they want to cancel
-        cancelEventId.setPromptText("Event ID to cancel");
         Button cancelEventBtn = new Button("Cancel Event");
         Button backFromEvent = new Button("Back");
+        Button updateEventBtn = new Button("Update Event");
+        Button clearUpdateBtn = new Button("Clear");
 
         // First row of the event containing basic event details
         HBox evFormRow1 = new HBox(8, evTitle, evDate, evLocation, evCapacity, evType, extraField);
+        evFormRow1.setAlignment(Pos.CENTER);
 
-        // Second row for different controls like creating the event, refresh button or canceling
-        HBox evFormRow2 = new HBox(8, createEventBtn, refreshEventsBtn, cancelEventId, cancelEventBtn);
+        // Second row for different controls like creating the event, refresh button ,canceling or searching
+        HBox evFormRow2 = new HBox(8, createEventBtn, refreshEventsBtn, cancelEventId, cancelEventBtn, searchField, filterType, searchBtn, clearSearchBtn);
+        evFormRow2.setAlignment(Pos.CENTER);
 
-        // Creates vertical layout for the event rowws
-        VBox eventFormSection = new VBox(10, evFormRow1, evFormRow2);
+        HBox evUpdateRow = new HBox(8, updateTitle, updateDate, updateLocation, updateCapacity, updateExtra, updateEventBtn, clearUpdateBtn);
+        evUpdateRow.setAlignment(Pos.CENTER);
+
+        // Creates vertical layout for the event rows
+        VBox eventFormSection = new VBox(10, evFormRow1, evFormRow2, evUpdateRow);
         eventFormSection.setPadding(new Insets(15)); // Adds padding
-        eventFormSection.setMaxWidth(1100); // Sets the maximum width of the form section
-        // Applies styling
+        eventFormSection.setMaxWidth(1190); // Sets the maximum width of the form section
+        // Applies styling to the boxes
         eventFormSection.setStyle(
                 "-fx-background-color: white;" +
                         "-fx-border-color: #D9D9D9;" +
@@ -356,7 +421,7 @@ public class HelloApplication extends Application {
         // Main content layout for Event Management screen (form inputs + output display)
         VBox eventContent = new VBox(15, eventHeader, eventTable, eventMessage, eventFormSection, backFromEvent);
         eventContent.setAlignment(Pos.TOP_CENTER);
-        eventContent.setPadding(new Insets(20, 50, 20, 50));
+        eventContent.setPadding(new Insets(12));
 
         // Root layout combining header and content vertically
         // Creates a scroll panel to allow scrolling for the eventContent layout
@@ -371,12 +436,6 @@ public class HelloApplication extends Application {
         VBox eventRoot = new VBox(0, eventHeaderTop, eventScroll);
 
         eventRoot.setStyle(pageBackgroundStyle); // Apply background styling to entire screen
-
-        // Adds styling to the specific buttons
-        createEventBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        refreshEventsBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        cancelEventBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        backFromEvent.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
         // Create the Event Management scene and assign it to index 1 in the scenes array
         eventScene = new Scene(eventRoot, 1200, 700);
@@ -459,6 +518,11 @@ public class HelloApplication extends Application {
         TextField viewUserId = new TextField(); // Text field where the user can view another user by their id
         viewUserId.setPromptText("User ID to view");
 
+        // Create a TextArea to display user information
+        TextArea userOutput = new TextArea();
+        userOutput.setEditable(false);
+        userOutput.setPrefHeight(200); // Sets the height of the text area to show the content
+
         // Buttons
         Button addUserBtn = new Button("Add User");
         Button refreshUsersBtn = new Button("Refresh Users");
@@ -468,12 +532,12 @@ public class HelloApplication extends Application {
 
         // First horizontal row containing all user input fields
         HBox userFormRow = new HBox(10, userName, userSurname, userEmail, userMonth, userDay, userYear, userIdField, userTypeLabel, userTypeCombo);
-        userFormRow.setAlignment(Pos.CENTER_LEFT);
+        userFormRow.setAlignment(Pos.CENTER);
         userFormRow.setSpacing(10);
 
         // Second horizontal row containing action buttons and removal field
         HBox userFormRow2 = new HBox(8, addUserBtn, refreshUsersBtn, viewUserId, viewUserBtn, removeUserId, removeUserBtn);
-        userFormRow2.setAlignment(Pos.CENTER_LEFT);
+        userFormRow2.setAlignment(Pos.CENTER);
         userFormRow2.setSpacing(10);
 
         // Create a vertical layout to group both form rows together
@@ -491,6 +555,9 @@ public class HelloApplication extends Application {
         // Vertical layout that builds the full User Management screen
         Label userHeader = new Label("User Management"); // Section header label displayed at the top of the User Management screen
 
+        Label userMessage = new Label(); // Label for displaying different messages from error messages to succession messages for the user section
+        userMessage.setStyle("-fx-text-fill: red; -fx-font-size: 13px;");
+
         // Apply styling to the header text to make it stand out
         // Uses a larger font size, bold weight, and the university red color for consistency
         userHeader.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #C20430;");
@@ -499,7 +566,7 @@ public class HelloApplication extends Application {
         VBox userHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
 
         // Main content layout for User Management screen (user form inputs + output display)
-        VBox userContent = new VBox(15, userHeader, userTable, userFormSection, backFromUser);
+        VBox userContent = new VBox(15, userHeader, userTable, userMessage, userFormSection, backFromUser, userOutput);
         userContent.setAlignment(Pos.TOP_CENTER);
         userContent.setPadding(new Insets(12)); // Padding - 12 pixels of whitespace on all sides so it doesn't touch edges
 
@@ -515,13 +582,6 @@ public class HelloApplication extends Application {
         VBox userRoot = new VBox(0, userHeaderTop, userScroll);
 
         userRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
-
-        // Adds styling for the specific buttons
-        addUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        refreshUsersBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        removeUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        viewUserBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        backFromUser.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
         // Create the User Management scene and assign it to index 2 in the scenes array
         userScene = new Scene(userRoot, 1200, 700);
@@ -548,13 +608,11 @@ public class HelloApplication extends Application {
         // Main content layout for Waitlist screen (displays waitlisted bookings)
         VBox waitContent = new VBox(10, waitHeader, waitlistOutput, backFromWaitlist);
         waitContent.setPadding(new Insets(12)); // Adds padding around the layout
+        waitContent.setAlignment(Pos.TOP_CENTER);
 
         // Root layout combining header and content vertically
         VBox waitRoot = new VBox(0, waitHeaderTop, waitContent);
         waitRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
-
-        // Adds styling for the back button
-        backFromWaitlist.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
 
         // Create the Waitlist scene and assign it to index 3 in the scenes array
         waitScene = new Scene(waitRoot, 1200, 700);
@@ -562,9 +620,51 @@ public class HelloApplication extends Application {
 
 
         // Booking Screen
-        bookingOutput = new TextArea(); // Text area used to display booking related messages
-        bookingOutput.setEditable(false); // Prevents user from typing in output area
-        bookingOutput.setPrefHeight(240); // Sets a fixed height for the booking display area
+        // Create a TableView to display Booking objects in a structured table format
+        bookingTable = new TableView<>();
+
+        // Create a column to display the booking ID
+        TableColumn<Booking, String> bookingIdCol = new TableColumn<>("Booking ID");
+
+        // Define how to extract the booking ID from each Booking object
+        bookingIdCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getBookingId()));
+
+        // Create a column to display the user ID associated with the booking
+        TableColumn<Booking, String> userCol = new TableColumn<>("User ID");
+
+        // Extracts the user ID from the Booking object and convert it to a String
+        userCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(String.valueOf(data.getValue().getUser().getID())));
+
+        // Create a column to display the event ID for the booking
+        TableColumn<Booking, String> eventCol = new TableColumn<>("Event ID");
+
+        // Extracts the event ID from the Booking object
+        eventCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEvent().getEventId()));
+
+        // Create a column to display the event title
+        TableColumn<Booking, String> titleCol = new TableColumn<>("Event Title");
+
+        // Extracts the event title from the Booking object
+        titleCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEvent().getTitle()));
+
+        // Create a column to display the booking status (CONFIRMED, WAITLISTED, CANCELLED)
+        TableColumn<Booking, String> statusCol = new TableColumn<>("Status");
+
+        // Convert the booking status enum to a String for display
+        statusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getStatus().toString()));
+
+        // Create a column to display when the booking was created
+        TableColumn<Booking, String> timeCol = new TableColumn<>("Created");
+
+        // Format the booking creation time into a readable string using DISPLAY_FMT
+        timeCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getWhenCreated().format(DISPLAY_FMT)));
+
+        // Add all created columns to the TableView so they appear in the UI
+        bookingTable.getColumns().addAll(bookingIdCol, userCol, eventCol, titleCol, statusCol, timeCol);
+
+        bookingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); // Make columns automatically resize to fill the available table width
+        bookingTable.setPrefHeight(240); // Set the preferred height of the table
+        bookingTable.setMaxWidth(1190); // Set the maximum width so it aligns with other UI sections
 
         // Dropdown menu for selecting a user when creating a booking
         bookingUserCombo = new ComboBox<>();
@@ -574,22 +674,30 @@ public class HelloApplication extends Application {
         bookingEventCombo = new ComboBox<>();
         bookingEventCombo.setPromptText("Select event (ID - title)");
 
+        TextField cancelBookingId = new TextField(); // Text field for where the user enters the booking ID to cancel
+        cancelBookingId.setPromptText("Booking ID to cancel");
+
         // Buttons
         Button createBookingBtn = new Button("Create Booking");
         Button refreshBookingsBtn = new Button("Refresh Bookings");
-        TextField cancelBookingId = new TextField(); // Text field for where the user enters the booking ID to cancel
-        cancelBookingId.setPromptText("Booking ID to cancel");
         Button cancelBookingBtn = new Button("Cancel Booking");
         Button backFromBooking = new Button("Back");
 
         // First row contains the booking creation inputs
         HBox bookingRow1 = new HBox(8, bookingUserCombo, bookingEventCombo);
+        bookingRow1.setAlignment(Pos.CENTER);
+        bookingRow1.setSpacing(10);
 
         // Second row contains booking action buttons and cancellation input
         HBox bookingRow2 = new HBox(8, createBookingBtn, refreshBookingsBtn, cancelBookingId, cancelBookingBtn);
+        bookingRow2.setAlignment(Pos.CENTER);
+        bookingRow2.setSpacing(10);
 
         // Main vertical layout for the Booking Management screen
         Label bookingHeader = new Label("Booking Management"); // Section header label displayed at the top of the Booking Management screen
+
+        Label bookingMessage = new Label(); // Label for displaying different messages from error messages to succession messages for the user section
+        bookingMessage.setStyle("-fx-text-fill: red; -fx-font-size: 13px;");
 
         // Apply styling to the header text to make it stand out
         // Uses a larger font size, bold weight, and the university red color for consistency
@@ -598,19 +706,34 @@ public class HelloApplication extends Application {
         // Create the top header section (navigation bar with buttons and logo)
         VBox bookingHeaderTop = createHeader(whiteTopBarStyle, blackHeaderStyle, navButtonStyle, eventBtn, userBtn, waitlistBtn, bookingBtn, logoImage);
 
+        // Vertical container to hold booking input fields and action buttons
+        VBox bookingFormSection = new VBox(10, bookingRow1, bookingRow2);
+        bookingFormSection.setPadding(new Insets(15));
+        bookingFormSection.setMaxWidth(1190);
+        // Apply styling to make the form look like a white card with a border
+        bookingFormSection.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-border-color: #D9D9D9;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;"
+        );
+
         // Main content layout for Booking Management screen (booking form inputs + output display)
-        VBox bookingContent = new VBox(10, bookingHeader, bookingOutput, bookingRow1, bookingRow2, backFromBooking);
+        VBox bookingContent = new VBox(15, bookingHeader, bookingTable, bookingMessage, bookingFormSection, backFromBooking);
+        bookingContent.setAlignment(Pos.TOP_CENTER);
         bookingContent.setPadding(new Insets(12)); // Adds padding around the layout
 
-        // Root layout combining header and content vertically
-        VBox bookingRoot = new VBox(0, bookingHeaderTop, bookingContent);
-        bookingRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
+        // Create a ScrollPane to allow scrolling for the userContent layout
+        ScrollPane bookingScroll = new ScrollPane(bookingContent);
+        bookingScroll.setFitToWidth(true);
 
-        // Adds styling for the specific buttons
-        createBookingBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        refreshBookingsBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        cancelBookingBtn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
-        backFromBooking.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #BDBDBD;");
+        // Uses horizontal and vertical scrolling if needed
+        bookingScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        bookingScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        // Root layout combining header and content vertically
+        VBox bookingRoot = new VBox(0, bookingHeaderTop, bookingScroll);
+        bookingRoot.setStyle(pageBackgroundStyle); // Applies the overall page background style used across the application
 
         // Create the Booking Management scene and assign it to index 4 in the scenes array
         bookingScene = new Scene(bookingRoot, 1200, 700);
@@ -665,6 +788,8 @@ public class HelloApplication extends Application {
                 // Adds the new event to the list
                 events.add(created);
 
+                eventMessage.setText("Event created successfully."); // Displays a success message if event meets criteria
+
                 // Clears event inputs after creation
                 evTitle.clear();
                 evDate.clear();
@@ -689,7 +814,7 @@ public class HelloApplication extends Application {
 
             // Validates the ID was entered
             if (id.isEmpty()) {
-                System.out.println("Enter Event ID to cancel.");
+                eventMessage.setText("Enter Event ID to cancel.");
                 return;
             }
 
@@ -697,7 +822,7 @@ public class HelloApplication extends Application {
 
             // Shows an error message if event does not exist
             if (found == null) {
-                System.out.println("Event not found: " + id);
+                eventMessage.setText("Event not found: " + id);
                 return;
             }
 
@@ -713,12 +838,158 @@ public class HelloApplication extends Application {
                     }
                 }
 
+                eventMessage.setText("Event cancelled successfully."); // Displays a success message if cancellation meets criteria
+
                 refreshEvents(); // Refresh the event display again
 
                 // Shows an error message if the cancellation fails
             } catch (Exception ex) {
-                System.out.println("CANCEL ERROR: " + ex.getMessage());
+                eventMessage.setText("CANCEL ERROR: " + ex.getMessage());
             }
+        });
+
+        // Runs when the user clicks the "Search / Filter" button
+        searchBtn.setOnAction(e -> {
+            // Get the search text, remove extra spaces, and convert to lowercase for case-insensitive matching
+            String searchText = searchField.getText().trim().toLowerCase();
+
+            // Get the selected event type from the dropdown (can be null if no filter is selected)
+            EventType selectedType = filterType.getValue();
+
+            // Create a list to store events that match the search/filter criteria
+            List<Event> filtered = new ArrayList<>();
+
+            // Loop through all events in the system
+            for (Event ev : events) {
+
+                // Check if event title matches the search text (or allow all if search is empty)
+                boolean matchesTitle = searchText.isEmpty() ||
+                        ev.getTitle().toLowerCase().contains(searchText);
+
+                // Check if event type matches the selected filter (or allow all if no filter is selected)
+                boolean matchesType = (selectedType == null) ||
+                        ev.getEventType() == selectedType;
+
+                // Add event to filtered list only if both conditions are true
+                if (matchesTitle && matchesType) {
+                    filtered.add(ev);
+                }
+            }
+
+            // Display the filtered list in the table
+            eventTable.setItems(FXCollections.observableArrayList(filtered));
+        });
+
+
+        // Runs when the user clicks the "Update Event" button
+        updateEventBtn.setOnAction(e -> {
+            try {
+                // Get the currently selected event from the table
+                Event ev = eventTable.getSelectionModel().getSelectedItem();
+
+                // If no event is selected, show error message
+                if (ev == null) {
+                    eventMessage.setText("Select an event from the table.");
+                    return;
+                }
+
+                // Update title if a new value was entered
+                if (!updateTitle.getText().trim().isEmpty()) {
+                    ev.setTitle(updateTitle.getText().trim());
+                }
+
+                // Update date/time if a new value was entered
+                if (!updateDate.getText().trim().isEmpty()) {
+                    ev.setDateTime(LocalDateTime.parse(updateDate.getText().trim(), INPUT_FMT));
+                }
+
+                // Update location if a new value was entered
+                if (!updateLocation.getText().trim().isEmpty()) {
+                    ev.setLocation(updateLocation.getText().trim());
+                }
+
+                // Update capacity if a new value was entered
+                if (!updateCapacity.getText().trim().isEmpty()) {
+                    ev.setCapacity(Integer.parseInt(updateCapacity.getText().trim()));
+                }
+
+                // Update extra field depending on event type
+                if (!updateExtra.getText().trim().isEmpty()) {
+                    if (ev instanceof Concert c) {
+                        c.setAgeRestriction(Integer.parseInt(updateExtra.getText().trim()));
+                    } else if (ev instanceof Seminar s) {
+                        s.setSpeakerName(updateExtra.getText().trim());
+                    } else if (ev instanceof Workshop w) {
+                        w.setTopic(updateExtra.getText().trim());
+                    }
+                }
+
+                // Refresh table to reflect updated data
+                refreshEvents();
+
+                // Show success message
+                eventMessage.setText("Event updated successfully.");
+
+            } catch (Exception ex) {
+                // Show error message if update fails
+                eventMessage.setText("Update failed: " + ex.getMessage());
+            }
+        });
+
+
+        // Runs when the user clicks on a row in the event table
+        eventTable.setOnMouseClicked(e -> {
+            // Get the selected event
+            Event ev = eventTable.getSelectionModel().getSelectedItem();
+
+            // If an event is selected, populate update fields with current values
+            if (ev != null) {
+
+                // Fill text fields with existing event data
+                updateTitle.setText(ev.getTitle());
+                updateDate.setText(ev.getDateTime().format(INPUT_FMT));
+                updateLocation.setText(ev.getLocation());
+                updateCapacity.setText(String.valueOf(ev.getCapacity()));
+
+                // Fill extra field based on event type
+                if (ev instanceof Concert c) {
+                    updateExtra.setText(String.valueOf(c.getAgeRestriction()));
+                } else if (ev instanceof Seminar s) {
+                    updateExtra.setText(s.getSpeakerName());
+                } else if (ev instanceof Workshop w) {
+                    updateExtra.setText(w.getTopic());
+                }
+            }
+        });
+
+
+        // Runs when the user clicks the "Clear" search button
+        clearSearchBtn.setOnAction(e -> {
+            // Clear the search text field
+            searchField.clear();
+
+            // Reset the filter dropdown
+            filterType.setValue(null);
+
+            // Reload all events (remove filtering)
+            refreshEvents();
+        });
+
+
+        // Runs when the user clicks the "Clear" update button
+        clearUpdateBtn.setOnAction(e -> {
+            // Clear all update input fields
+            updateTitle.clear();
+            updateDate.clear();
+            updateLocation.clear();
+            updateCapacity.clear();
+            updateExtra.clear();
+
+            // Clear the selected row in the table
+            eventTable.getSelectionModel().clearSelection();
+
+            // Clear any message shown to the user
+            eventMessage.setText("");
         });
 
 
@@ -738,7 +1009,7 @@ public class HelloApplication extends Application {
 
                 // Prevents users from being duplicated using the same id
                 if (findUserById(id) != null) {
-                    System.out.println("User ID already exists.");
+                    userMessage.setText("User ID already exists.");
                     return;
                 }
 
@@ -746,6 +1017,8 @@ public class HelloApplication extends Application {
                 User u = new User(n, s, m, d, y, id, email, type);
 
                 users.add(u); // Adds the users to the main user list
+
+                userMessage.setText("User added successfully."); // Displays a success message if user meets criteria
 
                 // Clears the input fields after adding a user
                 userName.clear();
@@ -760,7 +1033,7 @@ public class HelloApplication extends Application {
 
                 // Shows an error message if input is invalid or user creation fails
             } catch (Exception ex) {
-                System.out.println("ADD USER ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
+                userMessage.setText("ADD USER ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             }
         });
 
@@ -777,11 +1050,13 @@ public class HelloApplication extends Application {
 
                 // Shows an error message if no matching user id exists
                 if (found == null) {
-                    System.out.println("User not found: " + id);
+                    userMessage.setText("User not found: " + id);
                     return;
                 }
 
                 users.remove(found); // Removes the user from the user list
+
+                userMessage.setText("User removed successfully."); // Displays a success message if user meets criteria to be removed
 
                 // Also remove bookings belonging to this user
                 bookings.values().removeIf(b -> b.getUser().equals(found));
@@ -790,7 +1065,7 @@ public class HelloApplication extends Application {
 
                 // Shows an error message if removal fails
             } catch (Exception ex) {
-                System.out.println("REMOVE USER ERROR: " + ex.getMessage());
+                userMessage.setText("REMOVE USER ERROR: " + ex.getMessage());
             }
         });
 
@@ -803,7 +1078,7 @@ public class HelloApplication extends Application {
 
                 // If no user is found program outputs an error message
                 if (found == null) {
-                    System.out.println("User not found: " + id);
+                    userOutput.setText("User not found: " + id);
                     return;
                 }
 
@@ -840,10 +1115,10 @@ public class HelloApplication extends Application {
                     sb.append("No bookings found.");
                 }
 
-                System.out.println(sb.toString()); // Outputs the comlpleted text
+                userOutput.setText(sb.toString()); // Outputs the comlpleted text
 
             } catch (Exception ex) {
-                System.out.println("VIEW USER ERROR: " + ex.getMessage()); // Handles invalid input
+                userOutput.setText("Invalid ID input."); // Handles invalid input
             }
         });
 
@@ -859,7 +1134,7 @@ public class HelloApplication extends Application {
 
                 // Checks dropdown selections if they are filled
                 if (userEntry == null || eventEntry == null) {
-                    bookingOutput.setText("Please select both a user and an event.");
+                    bookingMessage.setText("Please select both a user and an event.");
                     return;
                 }
 
@@ -873,11 +1148,11 @@ public class HelloApplication extends Application {
 
                 // Stops if either user or event does not exist
                 if (u == null) {
-                    bookingOutput.setText("User not found.");
+                    bookingMessage.setText("User not found.");
                     return;
                 }
                 if (ev == null) {
-                    bookingOutput.setText("Event not found.");
+                    bookingMessage.setText("Event not found.");
                     return;
                 }
 
@@ -901,13 +1176,13 @@ public class HelloApplication extends Application {
 
                 // Enforces limit
                 if (activeBookings >= limit) {
-                    bookingOutput.setText("Booking limit reached for " + u.getUserType());
+                    bookingMessage.setText("Booking limit reached for " + u.getUserType());
                     return;
                 }
 
                 // Only active events can be booked
                 if (ev.getStatus() != enums.EventStatus.ACTIVE) {
-                    bookingOutput.setText("Event is not active.");
+                    bookingMessage.setText("Event is not active.");
                     return;
                 }
 
@@ -915,7 +1190,7 @@ public class HelloApplication extends Application {
                 // unless if their previous booking was cancelled
                 for (Booking b : bookings.values()) {
                     if (b.getUser().equals(u) && b.getEvent().equals(ev) && b.getStatus() != BookingStatus.CANCELLED) {
-                        bookingOutput.setText("User already booked this event.");
+                        bookingMessage.setText("User already booked this event.");
                         return;
                     }
                 }
@@ -942,13 +1217,15 @@ public class HelloApplication extends Application {
                 // Stores the booking in the main list
                 bookings.put(bookingId, newBooking);
 
+                bookingMessage.setText("Booking created successfully."); // Displays a success message if booking meets criteria
+
                 // Refreshes the booking and event displays
                 refreshBookings();
                 refreshEvents();
 
                 // Shows an error message if booking fails
             } catch (Exception ex) {
-                bookingOutput.setText("CREATE BOOKING ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
+                bookingMessage.setText("CREATE BOOKING ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             }
         });
 
@@ -962,7 +1239,7 @@ public class HelloApplication extends Application {
 
             // Validates the string was not empty
             if (id.isEmpty()) {
-                bookingOutput.setText("Enter booking ID to cancel.");
+                bookingMessage.setText("Enter booking ID to cancel.");
                 return;
             }
 
@@ -971,13 +1248,13 @@ public class HelloApplication extends Application {
 
             // Error message if booking is not found
             if (b == null) {
-                bookingOutput.setText("Booking not found: " + id);
+                bookingMessage.setText("Booking not found: " + id);
                 return;
             }
 
             // Error message if the booking is already cancelled
             if (b.getStatus() == BookingStatus.CANCELLED) {
-                bookingOutput.setText("Already cancelled.");
+                bookingMessage.setText("Already cancelled.");
                 return;
             }
 
@@ -1027,6 +1304,8 @@ public class HelloApplication extends Application {
             // Refresh booking and event displays after cancellation
             refreshBookings();
             refreshEvents();
+
+            bookingMessage.setText("Booking cancelled successfully."); // Displays a success message if booking cancellation meets criteria
         });
 
         loadInitialData();
@@ -1064,24 +1343,12 @@ public class HelloApplication extends Application {
 
     // Refreshes the booking display area with the latest booking information
     private void refreshBookings() {
-        // StringBuilder is used to build the display text
-        StringBuilder sb = new StringBuilder();
+        // Convert the bookings map values into an observable list and set it as the table data
+        // This allows the TableView to display all current bookings
+        bookingTable.setItems(FXCollections.observableArrayList(bookings.values()));
 
-        // Loops through every booking stored in the booking map
-        for (Booking b : bookings.values()) {
-            sb.append(b.getBookingId())
-                    .append(" | user=").append(b.getUser().getID())
-                    .append(" | event=").append(b.getEvent().getEventId())
-                    .append(" (").append(b.getEvent().getTitle()).append(")")
-                    .append(" | status=").append(b.getStatus())
-                    .append(" | created=").append(b.getWhenCreated().format(DISPLAY_FMT))
-                    .append("\n");
-        }
-
-        bookingOutput.setText(sb.toString()); // Displays the completed text in the booking output area
-
-        // Update the booking dropdowns so the UI stays consistent
-        refreshBookingCombos();
+        bookingTable.refresh(); // Refreshes table to display updated screen
+        refreshBookingCombos(); // Refreshes dropdowns in case they changed
     }
 
 
@@ -1336,8 +1603,9 @@ public class HelloApplication extends Application {
                 int capacity;
                 try {
                     capacity = Integer.parseInt(p[4].trim());
+                    if (capacity <= 0) capacity = 1;
                 } catch (Exception e) {
-                    capacity = 0; // fallback
+                    capacity = 1; // fallback
                 }
 
                 String status = p[5].trim();
@@ -1355,14 +1623,20 @@ public class HelloApplication extends Application {
                     case "SEMINAR" ->
                             event = new Seminar(eventId, title, dt, location, capacity, speaker);
                     case "CONCERT" -> {
-                        int age = ageRaw.isBlank() ? 0 : Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
+                        int age;
+                        try {
+                            age = Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
+                        } catch (Exception e) {
+                            age = 0; // default for "all ages"
+                        }
+
                         event = new Concert(eventId, title, dt, location, capacity, age);
                     }
                     default -> throw new IllegalArgumentException("Invalid eventType");
                 }
 
                 // If event was cancelled in file, restore it
-                if (status.equalsIgnoreCase("Cancelled")) {
+                if (status.trim().equalsIgnoreCase("Cancelled")) {
                     event.cancelEvent();
                 }
 
