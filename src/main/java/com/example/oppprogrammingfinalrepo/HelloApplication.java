@@ -421,16 +421,29 @@ public class HelloApplication extends Application {
                 }
 
                 Booking newBooking;
-                if (ev.hasCapacity()) {
+
+// count how many confirmed bookings this user already has
+                int confirmedCount = countConfirmedBookings(u);
+
+// booking limits
+                int limit = switch (u.getUserType()) {
+                    case STUDENT -> 3;
+                    case STAFF -> 5;
+                    case GUEST -> 1;
+                };
+
+// only confirm if under limit AND event has capacity
+                if (ev.hasCapacity() && confirmedCount < limit) {
+
                     newBooking = new Booking(bookingId, u, ev, BookingStatus.CONFIRMED);
                     ev.addConfirmedBooking(newBooking);
-
                     waitlistManager.addToConfirmed(ev, u);
 
-                } else {
+                }
+                else {
+
                     newBooking = new Booking(bookingId, u, ev, BookingStatus.WAITLISTED);
                     ev.addToWaitlist(newBooking);
-
                     waitlistManager.addToWaitlist(ev, u);
                 }
 
@@ -638,6 +651,22 @@ public class HelloApplication extends Application {
     private Event findEventById(String id) {
         for (Event e : events) if (e.getEventId().equalsIgnoreCase(id)) return e;
         return null;
+    }
+
+    private int countConfirmedBookings(User user) {
+
+        int count = 0;
+
+        for (Booking b : bookings.values()) {
+
+            if (b.getUser().equals(user)
+                    && b.getStatus() == BookingStatus.CONFIRMED) {
+
+                count++;
+            }
+        }
+
+        return count;
     }
 
 
