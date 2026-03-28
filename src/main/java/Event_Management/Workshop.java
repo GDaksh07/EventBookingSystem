@@ -8,31 +8,30 @@ public class Workshop extends Event {
     private static int nextId = 1;
     private String topic;
 
-    // Normal constructor used when creating a new workshop in the app
-    // This still auto-generates a new workshop ID
+    // Constructor used when creating a workshop normally
+    // Automatically generates a new ID
     public Workshop(String title, LocalDateTime dateTime, String location, int capacity, String topic) {
         this(generateId(), title, dateTime, location, capacity, topic);
     }
 
-    // Second constructor used when loading workshops from file for Part 3.1
-    // This lets us keep the exact event ID from the CSV file
+    // Constructor that allows passing in a specific event ID
     public Workshop(String eventId, String title, LocalDateTime dateTime, String location, int capacity, String topic) {
         super(eventId, title, dateTime, location, capacity);
         setEventType(EventType.WORKSHOP);
         setTopic(topic);
     }
 
-    // Generates a unique ID for Workshop
+    // Generates a unique ID for each workshop
     private static String generateId() {
         return "WS" + (nextId++);
     }
 
-    // Getter
+    // Returns workshop topic
     public String getTopic() {
         return topic;
     }
 
-    // Setter
+    // Sets topic with basic validation
     public void setTopic(String topic) {
         if (topic == null || topic.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic cannot be empty.");
@@ -40,8 +39,11 @@ public class Workshop extends Event {
         this.topic = topic.trim();
     }
 
+    // Displays workshop details
     @Override
     public String toString() {
-        return super.toString() + "\nTopic: " + topic.trim() + "\nEvent Type: " + this.getEventType();
+        return super.toString()
+                + "\nTopic: " + topic.trim()
+                + "\nEvent Type: " + this.getEventType();
     }
 }
