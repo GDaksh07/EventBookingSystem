@@ -8,34 +8,31 @@ import java.time.LocalDateTime;
 
 public class Booking {
 
-    // Unique ID for each booking
+    // Unique booking ID
     private final String bookingId;
 
-    // The user who made the booking
+    // User who made the booking
     private final User user;
 
-    // The event being booked
+    // Event the booking is for
     private final Event event;
 
-    // The time the booking was created
+    // Time the booking was created
     private final LocalDateTime whenCreated;
 
-    // Current status (CONFIRMED, WAITLISTED, CANCELLED)
+    // Current status of the booking
     private BookingStatus status;
 
-    // Default constructor used when creating bookings in the app
-    // This automatically sets the time to NOW
+    // Constructor used when creating a booking normally
+    // Sets the time to the current moment
     public Booking(String bookingId, User user, Event event, BookingStatus status) {
-
-        // Calls the full constructor and passes current time
         this(bookingId, user, event, LocalDateTime.now(), status);
     }
 
-    // Second constructor used when loading bookings from CSV (Part 3.1)
-    // This allows us to restore the ORIGINAL created time from file
+    // Constructor that allows setting a specific creation time
     public Booking(String bookingId, User user, Event event, LocalDateTime whenCreated, BookingStatus status) {
 
-        // Basic validation checks
+        // Make sure all required values are provided
         if (bookingId == null || bookingId.isBlank()) {
             throw new IllegalArgumentException("bookingId required");
         }
@@ -52,36 +49,40 @@ public class Booking {
             throw new IllegalArgumentException("status required");
         }
 
-        // Assign values to object
+        // Assign values to this booking
         this.bookingId = bookingId;
         this.user = user;
         this.event = event;
-        this.whenCreated = whenCreated; // <-- IMPORTANT FIX for 3.1
+        this.whenCreated = whenCreated;
         this.status = status;
     }
 
-    // Getters
+    // Returns booking ID
     public String getBookingId() {
         return bookingId;
     }
 
+    // Returns user
     public User getUser() {
         return user;
     }
 
+    // Returns event
     public Event getEvent() {
         return event;
     }
 
+    // Returns creation time
     public LocalDateTime getWhenCreated() {
         return whenCreated;
     }
 
+    // Returns current status
     public BookingStatus getStatus() {
         return status;
     }
 
-    // Setter for updating booking status
+    // Updates booking status
     public void setStatus(BookingStatus status) {
         if (status == null) {
             throw new IllegalArgumentException("status required");
@@ -89,7 +90,7 @@ public class Booking {
         this.status = status;
     }
 
-    // Displays booking info nicely
+    // Displays booking details
     @Override
     public String toString() {
         return "Booking{" +
