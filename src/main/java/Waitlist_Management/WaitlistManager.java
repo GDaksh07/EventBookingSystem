@@ -7,47 +7,26 @@ import enums.EventStatus;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * WaitlistManager (Part 1.4)
- *
- * I built this to manage waitlists WITHOUT changing the existing Event/User classes.
- * Since our Event class currently doesn't store confirmed attendees or a waitlist,
- * this manager stores that info in HashMaps.
- *
- * Key idea:
- * - I use the Event object itself as the key in the maps.
- * - I store User objects directly (no need for getUserId()).
- *
- * This avoids method-name mismatches and keeps my code isolated from other modules.
- */
+// This class manages confirmed bookings and waitlists for events.
+// It does not modify the Event or User classes.
+// Instead, it stores everything internally using maps.
 public class WaitlistManager {
 
-    /**
-     * For each event, stores confirmed users (these are the people with seats).
-     * We keep order so roster display is consistent.
-     */
+    // Stores confirmed users per event (these users have seats).
     private final Map<Event, List<User>> confirmedByEvent = new HashMap<>();
 
-    /**
-     * For each event, stores waitlisted users in FIFO order.
-     * Queue = first-come, first-served.
-     */
+    // Stores waitlisted users per event in FIFO order (first come, first served).
     private final Map<Event, Queue<User>> waitlistByEvent = new HashMap<>();
 
-    /**
-     * For each event, tracks "active" users (either confirmed or waitlisted).
-     * This prevents duplicate entries for the same event.
-     */
+    // Tracks all users involved in an event (confirmed or waitlisted).
+    // This prevents duplicate bookings.
     private final Map<Event, Set<User>> activeUsersByEvent = new HashMap<>();
 
-    /**
-     * Optional: track when a user joined the waitlist (useful for UI + testing).
-     */
+    // Optional: keeps track of when a user joined the waitlist.
+    // Useful if you want to show timestamps later.
     private final Map<Event, Map<User, LocalDateTime>> waitlistTimestamps = new HashMap<>();
 
-    /**
-     * Helper: ensures all maps have an entry for the event before we use it.
-     */
+    // Ensures all internal collections exist before using them.
     private void init(Event event) {
         confirmedByEvent.putIfAbsent(event, new ArrayList<>());
         waitlistByEvent.putIfAbsent(event, new ArrayDeque<>());
@@ -55,51 +34,45 @@ public class WaitlistManager {
         waitlistTimestamps.putIfAbsent(event, new HashMap<>());
     }
 
-    /**
-     * Helper: checks whether an event is active (bookable).
-     * Your Event uses a String status like "Active"/"Cancelled".
-     */
+    // Checks whether the event is active and can accept bookings.
     private boolean isActive(Event event) {
         return event.getStatus() == EventStatus.ACTIVE;
     }
 
-    /**
-     * Add a user to confirmed roster if there is space.
-     * If event is full, call addToWaitlist() instead.
-     */
+    // Adds a user directly to confirmed list if there is space.
     public void addToConfirmed(Event event, User user) {
+
         init(event);
 
         if (!isActive(event)) {
-            throw new IllegalStateException("Event is not Active. Cannot confirm booking.");
+            throw new IllegalStateException("Event is not Active.");
         }
 
-        // Block duplicates (same person can't be confirmed/waitlisted twice)
+        // Prevent duplicate booking
         if (activeUsersByEvent.get(event).contains(user)) {
-            throw new IllegalStateException("User is already confirmed or waitlisted for this event.");
+            throw new IllegalStateException("User already booked for this event.");
         }
 
-        // Capacity check
+        // Check event capacity
         if (confirmedByEvent.get(event).size() >= event.getCapacity()) {
-            throw new IllegalStateException("Event is full. Add user to waitlist instead.");
+            throw new IllegalStateException("Event is full.");
         }
 
         confirmedByEvent.get(event).add(user);
         activeUsersByEvent.get(event).add(user);
     }
 
-    /**
-     * Add a user to the waitlist in FIFO order.
-     */
+    // Adds a user to the waitlist (FIFO).
     public void addToWaitlist(Event event, User user) {
+
         init(event);
 
         if (!isActive(event)) {
-            throw new IllegalStateException("Event is not Active. Cannot join waitlist.");
+            throw new IllegalStateException("Event is not Active.");
         }
 
         if (activeUsersByEvent.get(event).contains(user)) {
-            throw new IllegalStateException("User is already confirmed or waitlisted for this event.");
+            throw new IllegalStateException("User already booked for this event.");
         }
 
         waitlistByEvent.get(event).add(user);
@@ -107,31 +80,32 @@ public class WaitlistManager {
         activeUsersByEvent.get(event).add(user);
     }
 
-    /**
-     * Cancel a confirmed booking. If someone is waiting, promote them automatically.
-     * Returns the promoted User (or null if no one to promote).
-     */
+    // Cancels a confirmed booking and promotes next user if possible.
+    // Returns the promoted user (or null if no one to promote).
     public User cancelConfirmedAndPromote(Event event, User user) {
+
         init(event);
 
         boolean removed = confirmedByEvent.get(event).remove(user);
+
         if (!removed) {
             throw new IllegalStateException("User is not confirmed for this event.");
         }
 
         activeUsersByEvent.get(event).remove(user);
+
         return promoteNextIfPossible(event);
     }
 
-    /**
-     * If there is space and waitlist is not empty, promote the first waitlisted user.
-     * Returns promoted User or null.
-     */
+    // Promotes first waitlisted user if there is space.
+    // Returns promoted user or null.
     public User promoteNextIfPossible(Event event) {
+
         init(event);
 
         if (!isActive(event)) return null;
 
+        // If still full, do nothing
         if (confirmedByEvent.get(event).size() >= event.getCapacity()) return null;
 
         User next = waitlistByEvent.get(event).poll(); // FIFO
@@ -140,30 +114,28 @@ public class WaitlistManager {
         waitlistTimestamps.get(event).remove(next);
 
         confirmedByEvent.get(event).add(next);
-        // user stays in active set (still booked)
+
         return next;
     }
 
-    /**
-     * Remove a user from the waitlist (ex: if they cancel while waiting).
-     */
+    // Removes a user from waitlist (ex: if they cancel while waiting).
     public void removeFromWaitlist(Event event, User user) {
+
         init(event);
 
         boolean removed = waitlistByEvent.get(event).remove(user);
+
         if (!removed) {
-            throw new IllegalStateException("User is not on the waitlist for this event.");
+            throw new IllegalStateException("User not on waitlist.");
         }
 
         waitlistTimestamps.get(event).remove(user);
         activeUsersByEvent.get(event).remove(user);
     }
 
-    /**
-     * When an event is cancelled:
-     * Clear confirmed list, waitlist, and internal tracking for that event.
-     */
+    // Clears all data when an event is cancelled.
     public void handleEventCancelled(Event event) {
+
         init(event);
 
         confirmedByEvent.get(event).clear();
@@ -172,19 +144,27 @@ public class WaitlistManager {
         waitlistTimestamps.get(event).clear();
     }
 
-    /**
-     * View confirmed roster (copy, so caller can't mutate internal list).
-     */
+    // Returns confirmed users (copy so internal list can't be modified externally).
     public List<User> viewConfirmed(Event event) {
         init(event);
         return new ArrayList<>(confirmedByEvent.get(event));
     }
 
-    /**
-     * View waitlist in FIFO order (copy).
-     */
+    // Returns waitlisted users in FIFO order (copy).
     public List<User> viewWaitlist(Event event) {
         init(event);
         return new ArrayList<>(waitlistByEvent.get(event));
+    }
+
+    // Helper for 2.4 to return promotion result cleanly.
+    public PromotionResult cancelConfirmedWithResult(Event event, User user) {
+
+        User promoted = cancelConfirmedAndPromote(event, user);
+
+        if (promoted == null) {
+            return PromotionResult.none(event);
+        }
+
+        return new PromotionResult(true, event, promoted);
     }
 }
