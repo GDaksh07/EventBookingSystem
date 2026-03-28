@@ -27,11 +27,25 @@ public class User {
     }
 
     // Getters
-    public String getName() { return name; }
-    public String getSurname() { return surname; }
-    public String getBirthdate() { return String.format("%02d/%02d/%04d", month, day, year); }
-    public int getID() { return id; }
-    public UserType getUserType() { return userType; }
+    public String getName() {
+        return name;
+    }
+
+    public String getSurname() {
+        return surname;
+    }
+
+    public String getBirthdate() {
+        return String.format("%02d/%02d/%04d", month, day, year);
+    }
+
+    public int getID() {
+        return id;
+    }
+
+    public UserType getUserType() {
+        return userType;
+    }
 
     // Setters
     public void setName(String name) {

@@ -30,12 +30,11 @@ public class BookingManager {
             return "Invalid user or event.";
         }
 
-        // Event must be active
         if (event.getStatus() != EventStatus.ACTIVE) {
             return "Event is not bookable (not ACTIVE).";
         }
 
-        // Prevent duplicate booking (same user + same event, not cancelled)
+        // prevent duplicate booking
         for (Booking b : bookings.values()) {
             if (b.getUser().equals(user)
                     && b.getEvent().equals(event)
@@ -44,25 +43,38 @@ public class BookingManager {
             }
         }
 
-        // Enforce booking limits based on user type
         int limit = getBookingLimit(user);
-        int activeBookings = countActiveBookings(user); // counts CONFIRMED + WAITLISTED
+        int confirmedBookings = countConfirmedBookings(user);
 
-        if (activeBookings >= limit) {
-            return "Booking limit reached for " + user.getUserType() + " (limit " + limit + ").";
-        }
-
-        // Decide confirmed vs waitlisted
         Booking booking;
-        if (event.hasCapacity()) {
-            booking = new Booking(bookingId, user, event, BookingStatus.CONFIRMED);
+
+        // confirm only if user is under limit AND event has space
+        if (event.hasCapacity() && confirmedBookings < limit) {
+
+            booking = new Booking(
+                    bookingId,
+                    user,
+                    event,
+                    BookingStatus.CONFIRMED
+            );
+
             event.addConfirmedBooking(booking);
+
         } else {
-            booking = new Booking(bookingId, user, event, BookingStatus.WAITLISTED);
+
+            booking = new Booking(
+                    bookingId,
+                    user,
+                    event,
+                    BookingStatus.WAITLISTED
+            );
+
             event.addToWaitlist(booking);
         }
 
+        // store booking
         bookings.put(bookingId, booking);
+
         return "Booking successful: " + booking.getStatus();
     }
 
@@ -97,9 +109,21 @@ public class BookingManager {
 
             // Promote first waitlisted booking (if exists)
             Booking promoted = event.pollWaitlist();
-            if (promoted != null) {
-                promoted.setStatus(BookingStatus.CONFIRMED);
-                event.addConfirmedBooking(promoted);
+
+            while (promoted != null) {
+
+                int confirmedBookings = countConfirmedBookings(promoted.getUser());
+                int limit = getBookingLimit(promoted.getUser());
+
+                if (confirmedBookings < limit) {
+                    // Only promote if allowed
+                    promoted.setStatus(BookingStatus.CONFIRMED);
+                    event.addConfirmedBooking(promoted);
+                    break;
+                } else {
+                    // Skip this user (they’re already full)
+                    promoted = event.pollWaitlist();
+                }
             }
         } else {
             event.removeFromWaitlist(booking);
@@ -111,11 +135,11 @@ public class BookingManager {
     /**
      * Counts bookings that are still active (CONFIRMED or WAITLISTED).
      */
-    private int countActiveBookings(User user) {
+    private int countConfirmedBookings(User user) {
         int count = 0;
         for (Booking b : bookings.values()) {
             if (b.getUser().equals(user)
-                    && b.getStatus() != BookingStatus.CANCELLED) {
+                    && b.getStatus() == BookingStatus.CONFIRMED) {
                 count++;
             }
         }
