@@ -14,9 +14,7 @@ import Waitlist_Management.WaitlistManager;
 import Waitlist_Management.PromotionResult;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.io.PrintWriter;
 import java.util.Comparator;
 
 // imports JavaFX classes to build the gui
@@ -788,6 +786,8 @@ public class HelloApplication extends Application {
                 // Adds the new event to the list
                 events.add(created);
 
+                saveData(); // Uses saveData() to save a created event
+
                 eventMessage.setText("Event created successfully."); // Displays a success message if event meets criteria
 
                 // Clears event inputs after creation
@@ -837,6 +837,8 @@ public class HelloApplication extends Application {
                         b.setStatus(BookingStatus.CANCELLED);
                     }
                 }
+
+                saveData(); // Uses saveData() to save a cancelled event
 
                 eventMessage.setText("Event cancelled successfully."); // Displays a success message if cancellation meets criteria
 
@@ -926,6 +928,8 @@ public class HelloApplication extends Application {
 
                 // Refresh table to reflect updated data
                 refreshEvents();
+
+                saveData(); // Uses saveData() to save a updated event
 
                 // Show success message
                 eventMessage.setText("Event updated successfully.");
@@ -1018,6 +1022,8 @@ public class HelloApplication extends Application {
 
                 users.add(u); // Adds the users to the main user list
 
+                saveData(); // Uses saveData() to save a created user
+
                 userMessage.setText("User added successfully."); // Displays a success message if user meets criteria
 
                 // Clears the input fields after adding a user
@@ -1055,6 +1061,11 @@ public class HelloApplication extends Application {
                 }
 
                 users.remove(found); // Removes the user from the user list
+
+                // remove bookings already happens below
+                bookings.values().removeIf(b -> b.getUser().equals(found));
+
+                saveData(); // Uses saveData() to save a deleted user
 
                 userMessage.setText("User removed successfully."); // Displays a success message if user meets criteria to be removed
 
@@ -1217,6 +1228,8 @@ public class HelloApplication extends Application {
                 // Stores the booking in the main list
                 bookings.put(bookingId, newBooking);
 
+                saveData(); // Uses saveData() to save a created booking
+
                 bookingMessage.setText("Booking created successfully."); // Displays a success message if booking meets criteria
 
                 // Refreshes the booking and event displays
@@ -1304,6 +1317,8 @@ public class HelloApplication extends Application {
             // Refresh booking and event displays after cancellation
             refreshBookings();
             refreshEvents();
+
+            saveData(); // Uses saveData() to save a cancelled booking
 
             bookingMessage.setText("Booking cancelled successfully."); // Displays a success message if booking cancellation meets criteria
         });
@@ -1509,9 +1524,9 @@ public class HelloApplication extends Application {
 
         try {
             // Load each file
-            loadUsersFromCsv("/users.csv");
-            loadEventsFromCsv("/events.csv");
-            loadBookingsFromCsv("/bookings.csv");
+            loadUsersFromCsv("users.csv");
+            loadEventsFromCsv("events.csv");
+            loadBookingsFromCsv("bookings.csv");
 
             // Refresh GUI so data shows up
             refreshUsers();
@@ -1526,22 +1541,15 @@ public class HelloApplication extends Application {
 
 
     // Opens a file from the resources folder
-    private BufferedReader openResourceFile(String resourcePath) {
-
-        InputStream in = getClass().getResourceAsStream(resourcePath);
-
-        if (in == null) {
-            throw new IllegalArgumentException("File not found: " + resourcePath);
-        }
-
-        return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+    private BufferedReader openFile(String path) throws IOException {
+        return new BufferedReader(new java.io.FileReader(path));
     }
 
 
     // ===================== USERS =====================
     private void loadUsersFromCsv(String path) throws IOException {
 
-        try (BufferedReader br = openResourceFile(path)) {
+        try (BufferedReader br = openFile(path)) {
 
             br.readLine(); // skip header row
 
@@ -1585,7 +1593,7 @@ public class HelloApplication extends Application {
     // ===================== EVENTS =====================
     private void loadEventsFromCsv(String path) throws IOException {
 
-        try (BufferedReader br = openResourceFile(path)) {
+        try (BufferedReader br = openFile(path)) {
 
             br.readLine(); // skip header row
 
@@ -1668,7 +1676,7 @@ public class HelloApplication extends Application {
 
         List<Row> rows = new ArrayList<>();
 
-        try (BufferedReader br = openResourceFile(path)) {
+        try (BufferedReader br = openFile(path)) {
 
             br.readLine(); // skip header
 
@@ -1720,6 +1728,97 @@ public class HelloApplication extends Application {
                 event.addToWaitlist(b);
                 waitlistManager.addToWaitlist(event, user);
             }
+        }
+    }
+
+
+    // Loops through all save methods and essentially checks if anything was changed
+    // For example if users were not changed and since it loops through all users, it will go to the next method
+    // Once in the next method of saveEvents() it will loop through and if something was changed it will be saved
+    // Essentially looping through all methods to make sure all files are always up to date
+    private void saveData() {
+        saveUsers(); // utilizes the saveUsers function to save the data in the correct csv file
+        saveEvents(); // utilizes the saveEvents function to save the data in the correct csv file
+        saveBookings(); // utilizes the saveBookings function to save the data in the correct csv file
+    }
+
+
+    // Saves all users from memory into users.csv
+    // Each user is written in CSV format matching the load method structure
+    private void saveUsers() {
+        try (PrintWriter writer = new PrintWriter("users.csv")) {
+            writer.println("id,name,email,type"); // Write CSV header row (required for proper loading)
+
+            // Loop through all users and write their data
+            for (User u : users) {
+                writer.println("U" + u.getID() + "," +
+                        u.getName() + " " + u.getSurname() + "," +
+                        u.getEmail() + "," +
+                        u.getUserType());
+            }
+
+        } catch (Exception e) {
+            System.out.println("SAVE USERS ERROR: " + e.getMessage()); // Handles file writing errors
+        }
+    }
+
+
+    // Saves all events into events.csv
+    // Includes extra fields depending on event type (Workshop, Seminar, Concert)
+    private void saveEvents() {
+        try (PrintWriter writer = new PrintWriter("events.csv")) {
+            // Write CSV header row
+            writer.println("eventId,title,dateTime,location,capacity,status,type,topic,speaker,age");
+
+            // Loop through all events
+            for (Event e : events) {
+                // Default empty values for optional fields
+                String topic = "";
+                String speaker = "";
+                String age = "";
+
+                // Fill only the relevant field depending on event subclass
+                if (e instanceof Workshop w) topic = w.getTopic();
+                if (e instanceof Seminar s) speaker = s.getSpeakerName();
+                if (e instanceof Concert c) age = String.valueOf(c.getAgeRestriction());
+
+                // Write event data in correct CSV format
+                writer.println(e.getEventId() + "," +
+                        e.getTitle() + "," +
+                        e.getDateTime().format(CSV_DATE_TIME_FMT) + "," +
+                        e.getLocation() + "," +
+                        e.getCapacity() + "," +
+                        e.getStatus() + "," +
+                        e.getEventType() + "," +
+                        topic + "," +
+                        speaker + "," +
+                        age);
+            }
+
+        } catch (Exception e) {
+            System.out.println("SAVE EVENTS ERROR: " + e.getMessage()); // Handles file writing errors
+        }
+    }
+
+
+    // Saves all bookings into bookings.csv
+    // Maintains relationships between users and events
+    private void saveBookings() {
+        try (PrintWriter writer = new PrintWriter("bookings.csv")) {
+            // Write CSV header row
+            writer.println("bookingId,userId,eventId,time,status");
+
+            // Loop through all bookings in the system
+            for (Booking b : bookings.values()) {
+                writer.println(b.getBookingId() + "," +
+                        "U" + b.getUser().getID() + "," +
+                        b.getEvent().getEventId() + "," +
+                        b.getWhenCreated().format(CSV_DATE_TIME_FMT) + "," +
+                        b.getStatus());
+            }
+
+        } catch (Exception e) {
+            System.out.println("SAVE BOOKINGS ERROR: " + e.getMessage()); // Handles file writing errors
         }
     }
 }
