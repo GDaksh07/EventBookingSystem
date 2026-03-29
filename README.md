@@ -97,7 +97,13 @@ If WAITLISTED:
 ##### **Steps**
 - Clone the repository using the url https://github.com/agabri01/OOProgrammingFinal
 - Ensure you have SDK21 as well and Maven is detected on the right side
-- In the Maven panel, click plugins, javafx, javafx:run
+- In the Maven panel, click plugins, javafx, javafx:run or click the Run button at the top when on the "HelloApplication.java" file
+
+### **How to Run the JUnit Suite Testing Files**
+- Clone the repository using the url https://github.com/agabri01/OOProgrammingFinal
+- Ensure you have SDK21 as well and Maven is detected on the right side
+- Click on the Test folder on the left and click on the specific file you want to test
+- In the .java file, you either click the top to run all tests in the file or right click the test you want to check and click run
 
 ### **Validation & Error Handling**
 - IllegalArgumentException for invalid input
