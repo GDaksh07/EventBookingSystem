@@ -284,7 +284,6 @@ public class HelloApplication extends Application {
         // Logic for retrieving the age restriction, speaker or topic
         eventExtraCol.setCellValueFactory(data -> {
             Event e = data.getValue(); // Get the Event object for the current row
-
             String str = ""; // Initialize a string to store what will be displayed in the column
 
             // Checks which event type it is to determine the label to give it
@@ -302,8 +301,18 @@ public class HelloApplication extends Application {
             return new javafx.beans.property.SimpleStringProperty(str);
         });
 
+        // Create a column for the capacity
+        TableColumn<Event, String> eventCapacityCol = new TableColumn<>("Capacity");
+        // Displays capacity in terms of how many are registers / total capacity
+        eventCapacityCol.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(
+                        data.getValue().getConfirmedBookings().size() + " / " +
+                                data.getValue().getCapacity()
+                )
+        );
+
         // Add all columns to the table
-        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventStatusCol, eventTypeCol, eventExtraCol);
+        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventCapacityCol, eventStatusCol, eventTypeCol, eventExtraCol);
 
         // Make columns automatically resize to fill available width
         eventTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
