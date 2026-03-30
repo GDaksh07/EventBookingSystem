@@ -87,10 +87,12 @@ public class HelloApplication extends Application {
         Scene bookingScene;
 
         // University of Guelph colour theme used throughout the GUI
+        // Styling logic done as: button colour, text fill colour, text size, bolded/normal, padding (space inside button)
         String pageBackgroundStyle = "-fx-background-color: #ECECEC;";
         String whiteTopBarStyle = "-fx-background-color: white;";
         String blackHeaderStyle = "-fx-background-color: black;";
-        String navButtonStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 10 18 10 18;";        String featuredCardStyle = "-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #D9D9D9; -fx-border-radius: 8;";
+        String navButtonStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 10 18 10 18;";
+        String featuredCardStyle = "-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #D9D9D9; -fx-border-radius: 8;";
         String redActionButtonStyle = "-fx-background-color: #C20430; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 4;";
 
         // Main Menu displayed on the main menu screen
@@ -283,21 +285,21 @@ public class HelloApplication extends Application {
         eventExtraCol.setCellValueFactory(data -> {
             Event e = data.getValue(); // Get the Event object for the current row
 
-            String value = ""; // Initialize a string to store what will be displayed in the column
+            String str = ""; // Initialize a string to store what will be displayed in the column
 
             // Checks which event type it is to determine the label to give it
             // If age restriction, it gives a number
             // if speaker or workshop it gives a string
             if (e instanceof Concert c) {
-                value = "Age: " + c.getAgeRestriction();
+                str = "Age: " + c.getAgeRestriction();
             } else if (e instanceof Seminar s) {
-                value = "Speaker: " + s.getSpeakerName();
+                str = "Speaker: " + s.getSpeakerName();
             } else if (e instanceof Workshop w) {
-                value = "Topic: " + w.getTopic();
+                str = "Topic: " + w.getTopic();
             }
 
             // Return the final value wrapped in a JavaFX property so it can be displayed in the table
-            return new javafx.beans.property.SimpleStringProperty(value);
+            return new javafx.beans.property.SimpleStringProperty(str);
         });
 
         // Add all columns to the table
@@ -769,7 +771,7 @@ public class HelloApplication extends Application {
                     }
                     case SEMINAR -> {
                         // Automatically has a default topic if field is left blank
-                        String topic = extraField.getText().trim().isEmpty() ? "General" : extraField.getText().trim();
+                        String topic = extraField.getText().trim().isEmpty() ? "TBA" : extraField.getText().trim();
                         created = new Seminar(titleVal, dt, locVal, cap, topic);
                     }
                     case WORKSHOP -> {
