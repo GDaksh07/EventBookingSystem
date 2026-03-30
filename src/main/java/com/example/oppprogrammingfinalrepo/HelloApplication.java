@@ -38,9 +38,6 @@ import javafx.scene.image.ImageView;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 
 public class HelloApplication extends Application {
 
@@ -287,7 +284,6 @@ public class HelloApplication extends Application {
         // Logic for retrieving the age restriction, speaker or topic
         eventExtraCol.setCellValueFactory(data -> {
             Event e = data.getValue(); // Get the Event object for the current row
-
             String str = ""; // Initialize a string to store what will be displayed in the column
 
             // Checks which event type it is to determine the label to give it
@@ -305,8 +301,18 @@ public class HelloApplication extends Application {
             return new javafx.beans.property.SimpleStringProperty(str);
         });
 
+        // Create a column for the capacity
+        TableColumn<Event, String> eventCapacityCol = new TableColumn<>("Capacity");
+        // Displays capacity in terms of how many are registers / total capacity
+        eventCapacityCol.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(
+                        data.getValue().getConfirmedBookings().size() + " / " +
+                                data.getValue().getCapacity()
+                )
+        );
+
         // Add all columns to the table
-        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventStatusCol, eventTypeCol, eventExtraCol);
+        eventTable.getColumns().addAll(eventIdCol, eventTitleCol, eventDateCol, eventLocCol, eventCapacityCol, eventStatusCol, eventTypeCol, eventExtraCol);
 
         // Make columns automatically resize to fill available width
         eventTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -1515,54 +1521,46 @@ public class HelloApplication extends Application {
     }
 
 
-    // Format used to read date/time from the CSV file
+    // Format used in CSV (matches project file format)
     private static final DateTimeFormatter CSV_DATE_TIME_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
 
-
-    // Loads all data when the app starts
+    // Loads all data at startup (users, events, bookings)
     private void loadInitialData() {
 
-        // Clear existing data before loading new data
+        // Clear existing data before loading fresh data
         users.clear();
         events.clear();
         bookings.clear();
 
         try {
             // Load each file
-            loadUsersFromCsv("/users.csv");
-            loadEventsFromCsv("/events.csv");
-            loadBookingsFromCsv("/bookings.csv");
+            loadUsersFromCsv("users.csv");
+            loadEventsFromCsv("events.csv");
+            loadBookingsFromCsv("bookings.csv");
 
-            // Refresh UI so data appears
+            // Refresh GUI so data shows up
             refreshUsers();
             refreshEvents();
             refreshBookings();
 
         } catch (Exception e) {
             System.out.println("LOAD ERROR: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
 
-    // Opens a CSV file from the resources folder
-    private BufferedReader openResourceFile(String resourcePath) {
-
-        InputStream in = getClass().getResourceAsStream(resourcePath);
-
-        // If file is missing, throw error
-        if (in == null) {
-            throw new IllegalArgumentException("File not found: " + resourcePath);
-        }
-
-        return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+    // Opens a file from the resources folder
+    private BufferedReader openFile(String path) throws IOException {
+        return new BufferedReader(new java.io.FileReader(path));
     }
 
 
-    // ================= USERS =================
+    // USERS
     private void loadUsersFromCsv(String path) throws IOException {
 
-        try (BufferedReader br = openResourceFile(path)) {
+        try (BufferedReader br = openFile(path)) {
 
             br.readLine(); // skip header row
 
@@ -1573,18 +1571,20 @@ public class HelloApplication extends Application {
 
                 String[] p = line.split(",", -1);
 
-                // Extract user data
-                int id = Integer.parseInt(p[0].trim().replaceAll("\\D+", ""));
+                String idRaw = p[0].trim();
                 String fullName = p[1].trim();
                 String email = p[2].trim();
                 String typeRaw = p[3].trim();
 
-                // Split full name into first and last
+                // Extract number from ID (handles U001 → 1)
+                int id = Integer.parseInt(idRaw.replaceAll("\\D+", ""));
+
+                // Split full name into first + last
                 String[] nameParts = fullName.split("\\s+", 2);
                 String first = nameParts.length > 0 ? nameParts[0] : "Unknown";
                 String last = nameParts.length > 1 ? nameParts[1] : "Unknown";
 
-                // Convert string to enum type
+                // Convert string to enum
                 UserType type = switch (typeRaw.toUpperCase()) {
                     case "STUDENT" -> UserType.STUDENT;
                     case "STAFF" -> UserType.STAFF;
@@ -1592,62 +1592,70 @@ public class HelloApplication extends Application {
                     default -> throw new IllegalArgumentException("Invalid userType");
                 };
 
-                // Create and store user
+                // Create user (dummy birthdate since class requires it)
                 User u = new User(first, last, 1, 1, 2000, id, email, type);
+
                 users.add(u);
             }
         }
     }
 
 
-    // ================= EVENTS =================
+    // EVENTS
     private void loadEventsFromCsv(String path) throws IOException {
 
-        try (BufferedReader br = openResourceFile(path)) {
+        try (BufferedReader br = openFile(path)) {
 
-            br.readLine(); // skip header
+            br.readLine(); // skip header row
 
             String line;
             while ((line = br.readLine()) != null) {
-
                 if (line.trim().isEmpty()) continue;
 
                 String[] p = line.split(",", -1);
 
-                // Extract event data
                 String eventId = p[0].trim();
                 String title = p[1].trim();
                 LocalDateTime dt = LocalDateTime.parse(p[2].trim(), CSV_DATE_TIME_FMT);
                 String location = p[3].trim();
-                int capacity = Integer.parseInt(p[4].trim());
+
+                int capacity;
+                try {
+                    capacity = Integer.parseInt(p[4].trim());
+                    if (capacity <= 0) capacity = 1;
+                } catch (Exception e) {
+                    capacity = 1; // fallback
+                }
+
                 String status = p[5].trim();
                 String type = p[6].trim();
-
                 String topic = p[7].trim();
                 String speaker = p[8].trim();
                 String ageRaw = p[9].trim();
 
                 Event event;
 
-                // Create correct event type
+                // Create correct event type based on CSV
                 switch (type.toUpperCase()) {
-
                     case "WORKSHOP" ->
                             event = new Workshop(eventId, title, dt, location, capacity, topic);
-
                     case "SEMINAR" ->
                             event = new Seminar(eventId, title, dt, location, capacity, speaker);
-
                     case "CONCERT" -> {
-                        int age = ageRaw.isBlank() ? 0 : Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
+                        int age;
+                        try {
+                            age = Integer.parseInt(ageRaw.replaceAll("\\D+", ""));
+                        } catch (Exception e) {
+                            age = 0; // default for "all ages"
+                        }
+
                         event = new Concert(eventId, title, dt, location, capacity, age);
                     }
-
                     default -> throw new IllegalArgumentException("Invalid eventType");
                 }
 
-                // Restore cancelled status if needed
-                if (status.equalsIgnoreCase("Cancelled")) {
+                // If event was cancelled in file, restore it
+                if (status.trim().equalsIgnoreCase("Cancelled")) {
                     event.cancelEvent();
                 }
 
@@ -1657,7 +1665,7 @@ public class HelloApplication extends Application {
     }
 
 
-    // ================= BOOKINGS =================
+    // BOOKINGS
     private void loadBookingsFromCsv(String path) throws IOException {
 
         // Temporary class to store each row before processing
@@ -1679,7 +1687,7 @@ public class HelloApplication extends Application {
 
         List<Row> rows = new ArrayList<>();
 
-        try (BufferedReader br = openResourceFile(path)) {
+        try (BufferedReader br = openFile(path)) {
 
             br.readLine(); // skip header
 
@@ -1719,6 +1727,7 @@ public class HelloApplication extends Application {
 
             if (user == null || event == null) continue;
 
+            // Create booking using correct timestamp
             Booking b = new Booking(r.id, user, event, r.time, r.status);
             bookings.put(r.id, b);
 
