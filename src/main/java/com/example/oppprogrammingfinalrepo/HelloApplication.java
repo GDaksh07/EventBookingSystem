@@ -174,7 +174,7 @@ public class HelloApplication extends Application {
         accentPane.setMinSize(140, 95); // Prevent the Pane from shrinking smaller than the defined size
         accentPane.setMaxSize(140, 95); // Prevent the Pane from expanding larger than the defined size
 
-        // Added the accent shapes to the pane in the order they should be placed
+        // Added the accent shapes to the pane in the order they should be place
         // Since gold was added first, the red can cover it as it is on the official website
         accentPane.getChildren().addAll(goldAccent, redAccent);
 
@@ -354,7 +354,7 @@ public class HelloApplication extends Application {
         TextField searchField = new TextField(); // Text field for the title name
         searchField.setPromptText("Search by title");
 
-        ComboBox<EventType> filterType = new ComboBox<>(); // Dropdown for searching for an event type in general
+        ComboBox<EventType> filterType = new ComboBox<>(); // Dropdown for searching for a event type in general
         filterType.getItems().addAll(EventType.CONCERT, EventType.SEMINAR, EventType.WORKSHOP); // Adds the types
         filterType.setPromptText("Filter by type");
 
@@ -1137,7 +1137,7 @@ public class HelloApplication extends Application {
                     sb.append("No bookings found.");
                 }
 
-                userOutput.setText(sb.toString()); // Outputs the completed text
+                userOutput.setText(sb.toString()); // Outputs the comlpleted text
 
             } catch (Exception ex) {
                 userOutput.setText("Invalid ID input."); // Handles invalid input
@@ -1296,7 +1296,7 @@ public class HelloApplication extends Application {
                 ev.removeConfirmedBooking(b); // Removes cancelled booking from events confirmed list
 
                 // Lets the waitlist manager cancel the confirmed users list
-                // Also promotes any user if available
+                // Also promotes any user if availible
                 PromotionResult result = waitlistManager.cancelConfirmedWithResult(ev, b.getUser());
 
                 if (result.isPromoted()) {
