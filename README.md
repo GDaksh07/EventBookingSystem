@@ -125,9 +125,7 @@ This project demonstrates:
 It reflects backend-style thinking applied to a desktop GUI environment.
 
 ### **Authors**
-- Daksh Gulati
+- Project Manager: Daksh Gulati
 - Aiden Gabriel
 - Matthew Wojtkowski
 - Muaz Umer
-- Rayyan Basha
-- Oways Alsaid Ahmed
