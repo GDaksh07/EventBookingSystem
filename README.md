@@ -129,3 +129,5 @@ It reflects backend-style thinking applied to a desktop GUI environment.
 - Aiden Gabriel
 - Matthew Wojtkowski
 - Muaz Umer
+- Rayyan Basha
+- Oways Alsaid Ahmed
